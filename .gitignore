@@ -40,3 +40,4 @@ yarn-error.log*
 # Claude / agent config (local only)
 .claude/
 .agents/
+plugins/
