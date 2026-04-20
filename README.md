@@ -1,180 +1,185 @@
-# Ecommerce Platform
+# Encommerce Application Documentation
 
-A full-stack ecommerce application built with a **Next.js** frontend and an **Express** backend, structured as a **Turborepo** monorepo.
+## 1. Project Overview
 
----
+The Encommerce Application is a monorepo-based ecommerce platform with:
 
-## Tech Stack
+- A `Next.js` frontend application (`apps/frontend`) for storefront and admin-oriented UI rendering.
+- An `Express.js` backend application (`apps/backend`) that exposes REST APIs for ecommerce workflows.
+- A shared Prisma database package (`packages/db`) that defines the schema and generated client.
 
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js 15, TypeScript, Tailwind CSS |
-| Backend | Express 5, TypeScript, Node.js |
-| Database | PostgreSQL via Prisma ORM (hosted on Neon) |
-| Auth | Clerk (JWT-based, webhook sync) |
-| Payments | Razorpay |
-| Media Storage | ImageKit (images/videos) |
-| File Storage | Cloudflare R2 (S3-compatible) |
-| Monorepo | Turborepo + npm workspaces |
+The repository uses npm workspaces and Turbo for task orchestration across apps and packages.
 
----
+## 2. Repository Structure
 
-## Features
+- `apps/frontend`: Next.js 16 frontend.
+- `apps/backend`: Express + TypeScript backend API server.
+- `packages/db`: Prisma schema, config, generated client, and database exports.
+- `packages/ui`: Reusable UI primitives.
+- `packages/eslint-config`: Shared linting configuration package.
 
-- **Product catalogue** — list, search, filter by category, price range, sort
-- **Product detail** — image gallery, reviews, stock indicator
-- **Cart** — add / update / remove items, persisted per user
-- **Wishlist** — save products for later
-- **Checkout & Payments** — Razorpay integration with order + transaction tracking
-- **Orders** — user order history with status tracking
-- **Reviews** — leave a review only after purchasing a product
-- **Addresses** — save delivery addresses with geo-coordinates
-- **Admin dashboard** — metrics (revenue, orders, low-stock alerts)
-- **Admin products** — create/edit/delete products with URL or local file upload (ImageKit)
-- **Admin orders** — view all orders, update order status
-- **Admin users** — view all registered users
+## 3. Technology Stack
 
----
+- **Frontend**: Next.js 16, React 19, TypeScript, Tailwind CSS 4.
+- **Backend**: Node.js, Express, TypeScript, Zod validation, Clerk middleware, Razorpay integration.
+- **Database**: PostgreSQL via Prisma ORM.
+- **Tooling**: Turbo, npm workspaces, Prettier.
 
-## Project Structure
+## 4. Current Implementation Status
 
-```
-encommerce_application/
-├── apps/
-│   ├── backend/          # Express API (REST, /api/v1)
-│   │   ├── src/
-│   │   │   ├── controllers/
-│   │   │   ├── services/
-│   │   │   ├── routes/
-│   │   │   ├── middlewares/
-│   │   │   ├── validations/
-│   │   │   ├── lib/        # Prisma, ImageKit, R2, async-handler
-│   │   │   └── utils/
-│   │   └── .env.example
-│   └── frontend/          # Next.js app (App Router)
-│       ├── app/
-│       │   ├── (admin)/   # Admin pages (protected)
-│       │   ├── (auth)/    # Sign-in / Sign-up
-│       │   └── (shop)/    # Public storefront
-│       ├── components/
-│       ├── lib/
-│       │   └── api.ts     # All API client functions
-│       └── .env.example
-└── packages/
-    └── db/                # Shared Prisma schema & client
-```
+### 4.1 Frontend (Implemented)
 
----
+- Root page renders `StorefrontShell` from `apps/frontend/components/storefront-shell.tsx`.
+- `StorefrontShell` includes:
+  - Sidebar navigation.
+  - Header and search/action controls.
+  - Hero/overview section.
+  - KPI statistics cards.
+  - Product grid sections.
+  - Order panel.
+  - Category spotlight panel.
+  - Loader/skeleton states.
+- Reusable local UI components are in `apps/frontend/components/ui`.
+- Layout metadata and base styling are configured in `apps/frontend/app/layout.tsx`.
 
-## Getting Started
+### 4.2 Backend (Implemented)
 
-### Prerequisites
+- Server bootstrap:
+  - CORS configured with frontend origin.
+  - Security middleware via Helmet.
+  - Request logging via Morgan.
+  - Clerk middleware for auth context.
+  - JSON/urlencoded parsers and webhook raw-body route.
+  - Health endpoint (`GET /health`).
+  - Centralized not-found and error handlers.
+- Route registration under `/api/v1` is complete for all core domains.
 
-- Node.js 18+
-- npm 11+
-- A PostgreSQL database (e.g. [Neon](https://neon.tech))
-- [Clerk](https://clerk.com) account
-- [Razorpay](https://razorpay.com) test account
-- [ImageKit](https://imagekit.io) account
-- [Cloudflare R2](https://developers.cloudflare.com/r2/) bucket (optional — for R2 uploads)
+#### Implemented API Domains
 
-### Installation
+- **Auth**
+  - `POST /api/v1/auth/webhook`
+  - `GET /api/v1/auth/me`
+- **Products**
+  - List/get products, list product reviews, admin create/update/delete.
+- **Categories**
+  - List categories, admin create/update/delete.
+- **Cart**
+  - Get cart, add item, update item quantity, remove item.
+- **Wishlist**
+  - Get wishlist, add item, remove item.
+- **Orders**
+  - Create order, list own orders, get order, admin status update.
+- **Payments**
+  - Create payment order, verify payment.
+- **Reviews**
+  - Create review.
+- **Addresses**
+  - List/create/update/delete addresses.
+- **Coupons**
+  - Apply coupon, admin create/list coupons.
+- **Admin**
+  - Dashboard metrics, order overview, user overview endpoints.
 
-```bash
-# Clone the repo
-git clone https://github.com/Deepanshumishra2004/Ecommerce_Platform.git
-cd Ecommerce_Platform
+#### Backend Supporting Layers
 
-# Install all dependencies
-npm install
-```
+- Validation middleware with Zod schemas per domain.
+- Authorization middleware (`requireDbUser`, `requireAdmin`).
+- Async handler and structured success response utility.
+- Utility functions:
+  - `calculateDiscount` for percentage/fixed coupon logic with max-cap handling.
+  - `getPagination` with safe defaults and max limit enforcement.
+  - `AppError` for standardized error propagation.
 
-### Environment Variables
+### 4.3 Database Layer (Implemented)
 
-Copy the example files and fill in your credentials:
+- Prisma schema includes models for:
+  - `User`, `Product`, `Category`, `Cart`, `CartItem`,
+  - `Wishlist`, `WishlistItem`,
+  - `Order`, `OrderItem`, `Transaction`,
+  - `Review`, `Address`, `Coupon`.
+- Enumerations defined:
+  - `Role`, `OrderStatus`, `PaymentStatus`, `CouponDiscountType`.
+- Core relations, uniqueness constraints, and indexes are configured.
+- Prisma client generation is configured to output to `packages/db/generated/client`.
+- Prisma config loads `DATABASE_URL` from `packages/db/.env` and validates presence at startup.
 
-```bash
-cp apps/backend/.env.example   apps/backend/.env
-cp apps/frontend/.env.example  apps/frontend/.env.local
-```
+## 5. Environment and Configuration
 
-**Backend** (`apps/backend/.env`) — see [.env.example](apps/backend/.env.example)
+### 5.1 Required Backend Environment Variables
 
-**Frontend** (`apps/frontend/.env.local`) — see [.env.example](apps/frontend/.env.example)
+- `NODE_ENV` (optional, defaulted).
+- `PORT` (optional, defaulted).
+- `FRONTEND_URL` (optional, defaulted).
+- `DATABASE_URL` (required).
+- `CLERK_PUBLISHABLE_KEY` (required).
+- `CLERK_SECRET_KEY` (required).
+- `CLERK_WEBHOOK_SIGNING_SECRET` (required).
+- `RAZORPAY_KEY_ID` (optional).
+- `RAZORPAY_KEY_SECRET` (optional).
 
-### Database Setup
+### 5.2 Workspace Commands
 
-```bash
-# Generate Prisma client and push schema to DB
-cd packages/db
-npx prisma db push
-npx prisma generate
-```
+From repository root:
 
-### Run in Development
+- `npm run dev` - run development tasks through Turbo.
+- `npm run build` - build all workspace targets.
+- `npm run lint` - run linting pipelines.
+- `npm run check-types` - run type checks.
+- `npm run format` - format supported files.
 
-```bash
-# From repo root — starts both frontend (3000) and backend (3001)
-npm run dev
-```
+## 6. What Is Completed vs In Progress
 
-Or run individually:
+### Completed
 
-```bash
-# Backend only
-cd apps/backend && npm run dev
+- Monorepo architecture and workspace tooling.
+- Frontend shell UI scaffold with reusable component pattern.
+- Backend domain routes/controllers/services/middlewares structure.
+- Prisma schema for ecommerce core entities.
+- Auth middleware integration and role-protected admin routes.
+- Payment route/controller flow for creation and verification.
 
-# Frontend only
-cd apps/frontend && npm run dev
-```
+### Not Yet Evident in Repository (Likely Next Focus)
 
----
+- Automated tests (unit/integration/e2e) are not currently visible.
+- CI/CD pipeline configuration is not currently visible.
+- Deployment manifests or infrastructure provisioning are not currently visible.
+- End-user documentation for setup and API usage was missing before this document.
 
-## API Overview
+## 7. Recommended Next Steps
 
-All endpoints are prefixed with `/api/v1`.
+### Priority 1: Stabilization and Quality
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/products` | — | List products (paginated, filterable) |
-| GET | `/products/:id` | — | Get single product |
-| POST | `/products` | Admin | Create product (supports file upload) |
-| PUT | `/products/:id` | Admin | Update product (supports file upload) |
-| DELETE | `/products/:id` | Admin | Delete product |
-| GET | `/categories` | — | List categories |
-| POST | `/categories` | Admin | Create category |
-| GET | `/cart` | User | Get cart |
-| POST | `/cart/add` | User | Add item to cart |
-| PUT | `/cart/update` | User | Update cart item quantity |
-| DELETE | `/cart/remove` | User | Remove cart item |
-| GET | `/orders` | User | Get user orders |
-| POST | `/orders` | User | Create order from cart |
-| POST | `/payments/create` | User | Create Razorpay payment order |
-| POST | `/payments/verify` | User | Verify payment signature |
-| GET | `/wishlist` | User | Get wishlist |
-| POST | `/wishlist/add` | User | Add to wishlist |
-| DELETE | `/wishlist/remove` | User | Remove from wishlist |
-| GET | `/addresses` | User | Get saved addresses |
-| POST | `/addresses` | User | Save address |
-| GET | `/reviews/can-review/:productId` | User | Check if user can review |
-| POST | `/reviews` | User | Submit a review |
-| GET | `/admin/dashboard` | Admin | Dashboard stats |
-| GET | `/admin/orders` | Admin | All orders |
-| PATCH | `/admin/orders/:id/status` | Admin | Update order status |
-| GET | `/admin/users` | Admin | All users |
+1. Add backend tests:
+   - Unit tests for services/utilities.
+   - Integration tests for `/api/v1` routes.
+2. Add frontend tests:
+   - Component tests for shell and UI primitives.
+   - Critical flow tests for cart/order states.
+3. Add strict lint and type-check enforcement in CI.
 
----
+### Priority 2: API and Product Readiness
 
-## Media Upload
+1. Publish an API contract (OpenAPI/Swagger) for all current endpoints.
+2. Add request/response examples for each public endpoint.
+3. Harden payment and webhook idempotency and audit logging.
+4. Add stock, order-state, and coupon-edge-case validations.
 
-Product images and videos are uploaded directly through the `POST /products` and `PUT /products/:id` endpoints using `multipart/form-data`:
+### Priority 3: Production Operations
 
-- Attach files under the field name `files` (max 5)
-- Attach a `mediaSlots` JSON string describing slot order (`{kind:"url",value:"..."}` or `{kind:"file"}`)
-- The backend uploads files to ImageKit `/ecommerce` folder and returns the CDN URLs saved to the database
+1. Add CI/CD workflow for build, lint, type-check, and tests.
+2. Add environment templates (`.env.example`) for backend/db/frontend.
+3. Add deployment documentation for staging and production.
+4. Add monitoring, structured logging, and error alerting strategy.
 
----
+### Priority 4: Frontend Completion
 
-## License
+1. Connect `StorefrontShell` demo content to live backend APIs.
+2. Add authenticated user flows (profile, orders, address management).
+3. Implement product detail and checkout experience.
+4. Improve accessibility and responsive coverage for all components.
 
-MIT
+## 8. Documentation Maintenance Notes
+
+- Keep this document updated whenever new modules, endpoints, or workflows are introduced.
+- Update the "Completed" and "Recommended Next Steps" sections at the end of each milestone.
+- Keep environment variable sections synchronized with runtime validation schemas.
