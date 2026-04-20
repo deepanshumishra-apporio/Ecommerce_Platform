@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express"
 import { JwtPayload } from "jsonwebtoken";
 import jwt from "jsonwebtoken";
+import { env } from "../config/env.js";
 
 export interface AuthRequest extends Request {
     userId?: string
@@ -12,7 +13,7 @@ export interface AuthJwtPayload extends JwtPayload {
     role?: string
 }
 
-const JWT_SECRET = process.env.JWT_SECRET as string
+const JWT_SECRET = env.JWT_SECRET
 
 const createAuthMiddleware = (...allowedRoles: string[]) => {
     return (req: AuthRequest, res: Response, next: NextFunction) => {
