@@ -37,33 +37,33 @@ export type TransactionSumAggregateOutputType = {
 export type TransactionMinAggregateOutputType = {
   id: string | null
   orderId: string | null
-  providerOrderId: string | null
   razorpayId: string | null
   amount: number | null
   status: string | null
   createdAt: Date | null
+  providerOrderId: string | null
   updatedAt: Date | null
 }
 
 export type TransactionMaxAggregateOutputType = {
   id: string | null
   orderId: string | null
-  providerOrderId: string | null
   razorpayId: string | null
   amount: number | null
   status: string | null
   createdAt: Date | null
+  providerOrderId: string | null
   updatedAt: Date | null
 }
 
 export type TransactionCountAggregateOutputType = {
   id: number
   orderId: number
-  providerOrderId: number
   razorpayId: number
   amount: number
   status: number
   createdAt: number
+  providerOrderId: number
   updatedAt: number
   _all: number
 }
@@ -80,33 +80,33 @@ export type TransactionSumAggregateInputType = {
 export type TransactionMinAggregateInputType = {
   id?: true
   orderId?: true
-  providerOrderId?: true
   razorpayId?: true
   amount?: true
   status?: true
   createdAt?: true
+  providerOrderId?: true
   updatedAt?: true
 }
 
 export type TransactionMaxAggregateInputType = {
   id?: true
   orderId?: true
-  providerOrderId?: true
   razorpayId?: true
   amount?: true
   status?: true
   createdAt?: true
+  providerOrderId?: true
   updatedAt?: true
 }
 
 export type TransactionCountAggregateInputType = {
   id?: true
   orderId?: true
-  providerOrderId?: true
   razorpayId?: true
   amount?: true
   status?: true
   createdAt?: true
+  providerOrderId?: true
   updatedAt?: true
   _all?: true
 }
@@ -200,11 +200,11 @@ export type TransactionGroupByArgs<ExtArgs extends runtime.Types.Extensions.Inte
 export type TransactionGroupByOutputType = {
   id: string
   orderId: string
-  providerOrderId: string | null
   razorpayId: string
   amount: number
   status: string
   createdAt: Date
+  providerOrderId: string | null
   updatedAt: Date
   _count: TransactionCountAggregateOutputType | null
   _avg: TransactionAvgAggregateOutputType | null
@@ -234,11 +234,11 @@ export type TransactionWhereInput = {
   NOT?: Prisma.TransactionWhereInput | Prisma.TransactionWhereInput[]
   id?: Prisma.StringFilter<"Transaction"> | string
   orderId?: Prisma.StringFilter<"Transaction"> | string
-  providerOrderId?: Prisma.StringNullableFilter<"Transaction"> | string | null
   razorpayId?: Prisma.StringFilter<"Transaction"> | string
   amount?: Prisma.FloatFilter<"Transaction"> | number
   status?: Prisma.StringFilter<"Transaction"> | string
   createdAt?: Prisma.DateTimeFilter<"Transaction"> | Date | string
+  providerOrderId?: Prisma.StringNullableFilter<"Transaction"> | string | null
   updatedAt?: Prisma.DateTimeFilter<"Transaction"> | Date | string
   order?: Prisma.XOR<Prisma.OrderScalarRelationFilter, Prisma.OrderWhereInput>
 }
@@ -246,11 +246,11 @@ export type TransactionWhereInput = {
 export type TransactionOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   orderId?: Prisma.SortOrder
-  providerOrderId?: Prisma.SortOrderInput | Prisma.SortOrder
   razorpayId?: Prisma.SortOrder
   amount?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  providerOrderId?: Prisma.SortOrderInput | Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   order?: Prisma.OrderOrderByWithRelationInput
 }
@@ -261,11 +261,11 @@ export type TransactionWhereUniqueInput = Prisma.AtLeast<{
   AND?: Prisma.TransactionWhereInput | Prisma.TransactionWhereInput[]
   OR?: Prisma.TransactionWhereInput[]
   NOT?: Prisma.TransactionWhereInput | Prisma.TransactionWhereInput[]
-  providerOrderId?: Prisma.StringNullableFilter<"Transaction"> | string | null
   razorpayId?: Prisma.StringFilter<"Transaction"> | string
   amount?: Prisma.FloatFilter<"Transaction"> | number
   status?: Prisma.StringFilter<"Transaction"> | string
   createdAt?: Prisma.DateTimeFilter<"Transaction"> | Date | string
+  providerOrderId?: Prisma.StringNullableFilter<"Transaction"> | string | null
   updatedAt?: Prisma.DateTimeFilter<"Transaction"> | Date | string
   order?: Prisma.XOR<Prisma.OrderScalarRelationFilter, Prisma.OrderWhereInput>
 }, "id" | "orderId">
@@ -273,11 +273,11 @@ export type TransactionWhereUniqueInput = Prisma.AtLeast<{
 export type TransactionOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   orderId?: Prisma.SortOrder
-  providerOrderId?: Prisma.SortOrderInput | Prisma.SortOrder
   razorpayId?: Prisma.SortOrder
   amount?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  providerOrderId?: Prisma.SortOrderInput | Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.TransactionCountOrderByAggregateInput
   _avg?: Prisma.TransactionAvgOrderByAggregateInput
@@ -292,21 +292,21 @@ export type TransactionScalarWhereWithAggregatesInput = {
   NOT?: Prisma.TransactionScalarWhereWithAggregatesInput | Prisma.TransactionScalarWhereWithAggregatesInput[]
   id?: Prisma.StringWithAggregatesFilter<"Transaction"> | string
   orderId?: Prisma.StringWithAggregatesFilter<"Transaction"> | string
-  providerOrderId?: Prisma.StringNullableWithAggregatesFilter<"Transaction"> | string | null
   razorpayId?: Prisma.StringWithAggregatesFilter<"Transaction"> | string
   amount?: Prisma.FloatWithAggregatesFilter<"Transaction"> | number
   status?: Prisma.StringWithAggregatesFilter<"Transaction"> | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Transaction"> | Date | string
+  providerOrderId?: Prisma.StringNullableWithAggregatesFilter<"Transaction"> | string | null
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Transaction"> | Date | string
 }
 
 export type TransactionCreateInput = {
   id?: string
-  providerOrderId?: string | null
   razorpayId: string
   amount: number
   status: string
   createdAt?: Date | string
+  providerOrderId?: string | null
   updatedAt?: Date | string
   order: Prisma.OrderCreateNestedOneWithoutTransactionInput
 }
@@ -314,21 +314,21 @@ export type TransactionCreateInput = {
 export type TransactionUncheckedCreateInput = {
   id?: string
   orderId: string
-  providerOrderId?: string | null
   razorpayId: string
   amount: number
   status: string
   createdAt?: Date | string
+  providerOrderId?: string | null
   updatedAt?: Date | string
 }
 
 export type TransactionUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  providerOrderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   razorpayId?: Prisma.StringFieldUpdateOperationsInput | string
   amount?: Prisma.FloatFieldUpdateOperationsInput | number
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  providerOrderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   order?: Prisma.OrderUpdateOneRequiredWithoutTransactionNestedInput
 }
@@ -336,43 +336,43 @@ export type TransactionUpdateInput = {
 export type TransactionUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   orderId?: Prisma.StringFieldUpdateOperationsInput | string
-  providerOrderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   razorpayId?: Prisma.StringFieldUpdateOperationsInput | string
   amount?: Prisma.FloatFieldUpdateOperationsInput | number
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  providerOrderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type TransactionCreateManyInput = {
   id?: string
   orderId: string
-  providerOrderId?: string | null
   razorpayId: string
   amount: number
   status: string
   createdAt?: Date | string
+  providerOrderId?: string | null
   updatedAt?: Date | string
 }
 
 export type TransactionUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  providerOrderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   razorpayId?: Prisma.StringFieldUpdateOperationsInput | string
   amount?: Prisma.FloatFieldUpdateOperationsInput | number
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  providerOrderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type TransactionUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   orderId?: Prisma.StringFieldUpdateOperationsInput | string
-  providerOrderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   razorpayId?: Prisma.StringFieldUpdateOperationsInput | string
   amount?: Prisma.FloatFieldUpdateOperationsInput | number
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  providerOrderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -384,11 +384,11 @@ export type TransactionNullableScalarRelationFilter = {
 export type TransactionCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   orderId?: Prisma.SortOrder
-  providerOrderId?: Prisma.SortOrder
   razorpayId?: Prisma.SortOrder
   amount?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  providerOrderId?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
 
@@ -399,22 +399,22 @@ export type TransactionAvgOrderByAggregateInput = {
 export type TransactionMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   orderId?: Prisma.SortOrder
-  providerOrderId?: Prisma.SortOrder
   razorpayId?: Prisma.SortOrder
   amount?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  providerOrderId?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
 
 export type TransactionMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   orderId?: Prisma.SortOrder
-  providerOrderId?: Prisma.SortOrder
   razorpayId?: Prisma.SortOrder
   amount?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  providerOrderId?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
 
@@ -456,21 +456,21 @@ export type TransactionUncheckedUpdateOneWithoutOrderNestedInput = {
 
 export type TransactionCreateWithoutOrderInput = {
   id?: string
-  providerOrderId?: string | null
   razorpayId: string
   amount: number
   status: string
   createdAt?: Date | string
+  providerOrderId?: string | null
   updatedAt?: Date | string
 }
 
 export type TransactionUncheckedCreateWithoutOrderInput = {
   id?: string
-  providerOrderId?: string | null
   razorpayId: string
   amount: number
   status: string
   createdAt?: Date | string
+  providerOrderId?: string | null
   updatedAt?: Date | string
 }
 
@@ -492,21 +492,21 @@ export type TransactionUpdateToOneWithWhereWithoutOrderInput = {
 
 export type TransactionUpdateWithoutOrderInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  providerOrderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   razorpayId?: Prisma.StringFieldUpdateOperationsInput | string
   amount?: Prisma.FloatFieldUpdateOperationsInput | number
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  providerOrderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type TransactionUncheckedUpdateWithoutOrderInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  providerOrderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   razorpayId?: Prisma.StringFieldUpdateOperationsInput | string
   amount?: Prisma.FloatFieldUpdateOperationsInput | number
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  providerOrderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -515,11 +515,11 @@ export type TransactionUncheckedUpdateWithoutOrderInput = {
 export type TransactionSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   orderId?: boolean
-  providerOrderId?: boolean
   razorpayId?: boolean
   amount?: boolean
   status?: boolean
   createdAt?: boolean
+  providerOrderId?: boolean
   updatedAt?: boolean
   order?: boolean | Prisma.OrderDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["transaction"]>
@@ -527,11 +527,11 @@ export type TransactionSelect<ExtArgs extends runtime.Types.Extensions.InternalA
 export type TransactionSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   orderId?: boolean
-  providerOrderId?: boolean
   razorpayId?: boolean
   amount?: boolean
   status?: boolean
   createdAt?: boolean
+  providerOrderId?: boolean
   updatedAt?: boolean
   order?: boolean | Prisma.OrderDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["transaction"]>
@@ -539,11 +539,11 @@ export type TransactionSelectCreateManyAndReturn<ExtArgs extends runtime.Types.E
 export type TransactionSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   orderId?: boolean
-  providerOrderId?: boolean
   razorpayId?: boolean
   amount?: boolean
   status?: boolean
   createdAt?: boolean
+  providerOrderId?: boolean
   updatedAt?: boolean
   order?: boolean | Prisma.OrderDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["transaction"]>
@@ -551,15 +551,15 @@ export type TransactionSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.E
 export type TransactionSelectScalar = {
   id?: boolean
   orderId?: boolean
-  providerOrderId?: boolean
   razorpayId?: boolean
   amount?: boolean
   status?: boolean
   createdAt?: boolean
+  providerOrderId?: boolean
   updatedAt?: boolean
 }
 
-export type TransactionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "orderId" | "providerOrderId" | "razorpayId" | "amount" | "status" | "createdAt" | "updatedAt", ExtArgs["result"]["transaction"]>
+export type TransactionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "orderId" | "razorpayId" | "amount" | "status" | "createdAt" | "providerOrderId" | "updatedAt", ExtArgs["result"]["transaction"]>
 export type TransactionInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   order?: boolean | Prisma.OrderDefaultArgs<ExtArgs>
 }
@@ -578,11 +578,11 @@ export type $TransactionPayload<ExtArgs extends runtime.Types.Extensions.Interna
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     orderId: string
-    providerOrderId: string | null
     razorpayId: string
     amount: number
     status: string
     createdAt: Date
+    providerOrderId: string | null
     updatedAt: Date
   }, ExtArgs["result"]["transaction"]>
   composites: {}
@@ -1010,11 +1010,11 @@ export interface Prisma__TransactionClient<T, Null = never, ExtArgs extends runt
 export interface TransactionFieldRefs {
   readonly id: Prisma.FieldRef<"Transaction", 'String'>
   readonly orderId: Prisma.FieldRef<"Transaction", 'String'>
-  readonly providerOrderId: Prisma.FieldRef<"Transaction", 'String'>
   readonly razorpayId: Prisma.FieldRef<"Transaction", 'String'>
   readonly amount: Prisma.FieldRef<"Transaction", 'Float'>
   readonly status: Prisma.FieldRef<"Transaction", 'String'>
   readonly createdAt: Prisma.FieldRef<"Transaction", 'DateTime'>
+  readonly providerOrderId: Prisma.FieldRef<"Transaction", 'String'>
   readonly updatedAt: Prisma.FieldRef<"Transaction", 'DateTime'>
 }
     

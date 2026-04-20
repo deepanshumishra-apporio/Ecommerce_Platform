@@ -1,137 +1,123 @@
-import type { WebhookEvent } from "@clerk/express/webhooks";
-import { clerkClient } from "@clerk/express";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma.js";
 import { AppError } from "../utils/app-error.js";
+import { env } from "../config/env.js";
 
-type ClerkWebhookData = {
-  id?: string;
-  primary_email_address_id?: string;
-  email_addresses?: Array<{ id?: string; email_address?: string }>;
-};
-
-type ClerkUserData = {
-  id: string;
-  primaryEmailAddressId?: string | null;
-  emailAddresses: Array<{ id: string; emailAddress: string }>;
-};
+const SALT_ROUNDS = 12;
 
 const userInclude = {
   cart: {
     include: {
       items: {
-        include: {
-          product: true,
-        },
+        include: { product: true },
       },
     },
   },
   wishlist: {
     include: {
       items: {
-        include: {
-          product: true,
-        },
+        include: { product: true },
       },
     },
   },
   addresses: true,
 } as const;
 
-const extractPrimaryEmail = (data: ClerkWebhookData) => {
-  const addresses = data.email_addresses ?? [];
-  if (data.primary_email_address_id) {
-    const primary = addresses.find((a) => a.id === data.primary_email_address_id);
-    if (primary?.email_address) {
-      return primary.email_address;
-    }
-  }
-  return addresses[0]?.email_address ?? "";
+const resolveRole = async () => {
+  const count = await prisma.user.count();
+  return count === 0 ? "ADMIN" : "USER";
 };
 
-const extractPrimaryEmailFromClerkUser = (user: ClerkUserData) => {
-  if (user.primaryEmailAddressId) {
-    const primary = user.emailAddresses.find((address) => address.id === user.primaryEmailAddressId);
-    if (primary?.emailAddress) {
-      return primary.emailAddress;
-    }
-  }
+export const signup = async (email: string, password: string) => {
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) throw new AppError("Email already in use", 409);
 
-  return user.emailAddresses[0]?.emailAddress ?? "";
-};
+  const hashed = await bcrypt.hash(password, SALT_ROUNDS);
+  const role = await resolveRole();
 
-const resolveRoleForNewUser = async () => {
-  const existingUsers = await prisma.user.count();
-  return existingUsers === 0 ? "ADMIN" : "USER";
-};
-
-export const handleClerkWebhook = async (event: WebhookEvent) => {
-  const data = event.data as ClerkWebhookData;
-  const clerkId = data.id;
-
-  if (!clerkId) {
-    throw new AppError("Invalid Clerk webhook payload", 400);
-  }
-
-  if (event.type === "user.deleted") {
-    await prisma.user.deleteMany({
-      where: { clerkId },
-    });
-
-    return { processed: true };
-  }
-
-  if (event.type !== "user.created" && event.type !== "user.updated") {
-    return { processed: true, skipped: event.type };
-  }
-
-  const email = extractPrimaryEmail(data);
-
-  if (!email) {
-    throw new AppError("Clerk user email is required", 400);
-  }
-
-  const role = await resolveRoleForNewUser();
-
-  return prisma.user.upsert({
-    where: { clerkId },
-    update: { email },
-    create: {
-      clerkId,
-      email,
-      role,
+  const user = await prisma.user.create({
+    data: { 
+      email, 
+      password: hashed, 
+      role 
     },
   });
+
+  const token = jwt.sign(
+    { 
+      userId: user.id, 
+      email: user.email, 
+      role: user.role 
+    },
+    env.JWT_SECRET,
+    { expiresIn: "7d" },
+  );
+
+  return { 
+    token, 
+    user: { 
+      userId: user.id, 
+      email: user.email, 
+      role: user.role 
+    } 
+  };
 };
 
-export const getCurrentDbUser = async (clerkId: string) => {
-  const existing = await prisma.user.findUnique({
-    where: { clerkId },
+export const signin = async (email: string, password: string) => {
+
+  const user = await prisma.user.findUnique({ 
+    where: { 
+      email 
+    } 
+  });
+
+  if (!user) throw new AppError("Invalid email or password", 401);
+
+  const valid = await bcrypt.compare(password, user.password);
+
+  if (!valid) throw new AppError("Invalid email or password", 401);
+
+  const token = jwt.sign({ 
+      userId: user.id, 
+      email: user.email, 
+      role: user.role 
+    },
+    env.JWT_SECRET,
+    { expiresIn: "7d" },
+  );
+
+  return { token, 
+    user: { 
+      userId: user.id, 
+      email: user.email, 
+      role: user.role 
+    } };
+};
+
+export const getCurrentDbUser = async (userId: string) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
     include: userInclude,
   });
+  if (!user) throw new AppError("User not found", 404);
+  return user;
+};
 
-  if (existing) {
-    return existing;
-  }
-
-  const clerkUser = (await clerkClient.users.getUser(clerkId)) as ClerkUserData;
-  const email = extractPrimaryEmailFromClerkUser(clerkUser);
-
-  if (!email) {
-    throw new AppError("Unable to resolve current user email", 400);
-  }
-
-  const role = await resolveRoleForNewUser();
-
-  return prisma.user.upsert({
-    where: { clerkId },
-    update: {
-      email,
-    },
-    create: {
-      clerkId,
-      email,
-      role,
-    },
-    include: userInclude,
+export const updateProfile = async (userId: string, data: { name?: string; phone?: string }) => {
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data,
+    select: { id: true, email: true, name: true, phone: true, role: true, createdAt: true, updatedAt: true },
   });
+  return user;
+};
+
+export const changePassword = async (userId: string, currentPassword: string, newPassword: string) => {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new AppError("User not found", 404);
+  const valid = await bcrypt.compare(currentPassword, user.password);
+  if (!valid) throw new AppError("Current password is incorrect", 400);
+  const hashed = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  await prisma.user.update({ where: { id: userId }, data: { password: hashed } });
 };

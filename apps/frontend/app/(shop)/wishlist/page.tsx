@@ -1,13 +1,13 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "../../../contexts/AuthContext";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { getWishlist, addToCart, removeFromWishlist, type Wishlist } from "@/lib/api";
 import { useRouter } from "next/navigation";
 
 export default function WishlistPage() {
-  const { getToken, isSignedIn, isLoaded } = useAuth();
+  const { isSignedIn, isLoaded } = useAuth();
   const router = useRouter();
   const [wishlist, setWishlist] = useState<Wishlist | null>(null);
   const [loading, setLoading]   = useState(true);
@@ -15,10 +15,9 @@ export default function WishlistPage() {
   const [removing, setRemoving] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const token = await getToken(); if (!token) return;
-    try { setWishlist(await getWishlist(token)); }
+    try { setWishlist(await getWishlist()); }
     finally { setLoading(false); }
-  }, [getToken]);
+  }, []);
 
   useEffect(() => {
     if (isLoaded && isSignedIn) load();
@@ -28,15 +27,13 @@ export default function WishlistPage() {
   async function handleRemove(productId: string) {
     setRemoving(productId);
     await new Promise((r) => setTimeout(r, 200));
-    const token = await getToken(); if (!token) return;
-    setWishlist(await removeFromWishlist(productId, token));
+    setWishlist(await removeFromWishlist(productId));
     setRemoving(null);
   }
 
   async function handleAddToCart(productId: string) {
-    const token = await getToken(); if (!token) return;
     setAdding(productId);
-    try { await addToCart(productId, 1, token); router.push("/cart"); }
+    try { await addToCart(productId, 1, "L"); router.push("/cart"); }
     finally { setAdding(null); }
   }
 

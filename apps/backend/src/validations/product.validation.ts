@@ -16,8 +16,9 @@ export const createProductSchema = z.object({
   description: z.string().min(1),
   price: z.coerce.number().positive(),
   stock: z.coerce.number().int().nonnegative(), 
-  featuredImage: z.string().url().optional().or(z.literal("")),
-  imageUrls: z.array(z.string().url()).optional().default([]),
+  featuredImage: z.union([z.url(), z.literal("")]).optional(),
+  imageUrls: z.array(z.url()).optional().default([]),
+  sizes: z.array(z.string().min(1)).optional().default([]),
   sellerId: z.string().min(1),
   categoryId: z.uuid(),
 });

@@ -9,24 +9,20 @@ datasource db {
 
 model User {
   id        String    @id @default(uuid())
-  clerkId   String    @unique
   email     String    @unique
-  role      Role      @default(USER)
   createdAt DateTime  @default(now())
+  role      Role      @default(USER)
   updatedAt DateTime  @updatedAt
-
+  password  String
+  name      String?
+  phone     String?
+  addresses Address[]
   cart      Cart?
-  wishlist  Wishlist?
   orders    Order[]
   reviews   Review[]
-  addresses Address[]
+  wishlist  Wishlist?
 
   @@index([role])
-}
-
-enum Role {
-  USER
-  ADMIN
 }
 
 model Product {
@@ -35,22 +31,33 @@ model Product {
   description   String
   price         Float
   stock         Int
-  featuredImage String?
-  imageUrls     String[]
   sellerId      String
   categoryId    String
   createdAt     DateTime       @default(now())
+  featuredImage String?
+  imageUrls     String[]
   updatedAt     DateTime       @updatedAt
-
-  category      Category       @relation(fields: [categoryId], references: [id])
-  reviews       Review[]
   cartItems     CartItem[]
-  wishlistItems WishlistItem[]
   orderItems    OrderItem[]
+  category      Category       @relation(fields: [categoryId], references: [id])
+  productSizes  ProductSize[]
+  reviews       Review[]
+  wishlistItems WishlistItem[]
 
   @@index([categoryId])
   @@index([sellerId])
   @@index([createdAt])
+}
+
+model ProductSize {
+  id        String  @id @default(uuid())
+  productId String
+  size      String
+  stock     Int     @default(0)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, size])
+  @@index([productId])
 }
 
 model Category {
@@ -71,11 +78,11 @@ model CartItem {
   cartId    String
   productId String
   quantity  Int
-
+  size      String  @default("")
   cart      Cart    @relation(fields: [cartId], references: [id])
   product   Product @relation(fields: [productId], references: [id])
 
-  @@unique([cartId, productId])
+  @@unique([cartId, productId, size])
   @@index([productId])
 }
 
@@ -90,24 +97,23 @@ model WishlistItem {
   id         String   @id @default(uuid())
   wishlistId String
   productId  String
-
-  wishlist   Wishlist @relation(fields: [wishlistId], references: [id])
   product    Product  @relation(fields: [productId], references: [id])
+  wishlist   Wishlist @relation(fields: [wishlistId], references: [id])
 
   @@unique([wishlistId, productId])
   @@index([productId])
 }
 
 model Order {
-  id            String         @id @default(uuid())
-  userId        String
-  status        OrderStatus
-  paymentStatus PaymentStatus
-  totalAmount   Float
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-
-  user          User           @relation(fields: [userId], references: [id])
+  id              String        @id @default(uuid())
+  userId          String
+  status          OrderStatus
+  paymentStatus   PaymentStatus
+  totalAmount     Float
+  deliveryAddress String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  user          User          @relation(fields: [userId], references: [id])
   items         OrderItem[]
   transaction   Transaction?
 
@@ -115,6 +121,78 @@ model Order {
   @@index([status])
   @@index([paymentStatus])
   @@index([createdAt])
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Float
+  size      String  @default("")
+  order     Order   @relation(fields: [orderId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  rating    Int
+  comment   String
+  productId String
+  userId    String
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([productId, userId])
+  @@index([productId])
+}
+
+model Address {
+  id          String   @id @default(uuid())
+  userId      String
+  fullAddress String
+  latitude    Float
+  longitude   Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model Transaction {
+  id              String   @id @default(uuid())
+  orderId         String   @unique
+  razorpayId      String
+  amount          Float
+  status          String
+  createdAt       DateTime @default(now())
+  providerOrderId String?
+  updatedAt       DateTime @updatedAt
+  order           Order    @relation(fields: [orderId], references: [id])
+}
+
+model Coupon {
+  id             String             @id @default(uuid())
+  code           String             @unique
+  description    String?
+  discountType   CouponDiscountType
+  discountValue  Float
+  minOrderAmount Float?
+  maxDiscount    Float?
+  isActive       Boolean            @default(true)
+  expiresAt      DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([code])
+  @@index([isActive])
+}
+
+enum Role {
+  USER
+  ADMIN
 }
 
 enum OrderStatus {
@@ -129,76 +207,6 @@ enum PaymentStatus {
   PENDING
   PAID
   FAILED
-}
-
-model OrderItem {
-  id        String   @id @default(uuid())
-  orderId   String
-  productId String
-  quantity  Int
-  price     Float
-
-  order     Order    @relation(fields: [orderId], references: [id])
-  product   Product  @relation(fields: [productId], references: [id])
-}
-
-model Review {
-  id        String   @id @default(uuid())
-  rating    Int
-  comment   String
-  productId String
-  userId    String
-  createdAt DateTime @default(now())
-
-  product   Product  @relation(fields: [productId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
-
-  @@unique([productId, userId])
-  @@index([productId])
-}
-
-model Address {
-  id          String  @id @default(uuid())
-  userId      String
-  fullAddress String
-  latitude    Float
-  longitude   Float
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  user        User    @relation(fields: [userId], references: [id])
-
-  @@index([userId])
-}
-
-model Transaction {
-  id         String  @id @default(uuid())
-  orderId    String  @unique
-  providerOrderId String?
-  razorpayId String
-  amount     Float
-  status     String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  order      Order   @relation(fields: [orderId], references: [id])
-}
-
-model Coupon {
-  id             String   @id @default(uuid())
-  code           String   @unique
-  description    String?
-  discountType   CouponDiscountType
-  discountValue  Float
-  minOrderAmount Float?
-  maxDiscount    Float?
-  isActive       Boolean  @default(true)
-  expiresAt      DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  @@index([code])
-  @@index([isActive])
 }
 
 enum CouponDiscountType {

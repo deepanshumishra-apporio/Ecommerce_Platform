@@ -1,14 +1,14 @@
 import { Router } from "express";
 import * as addressController from "../controllers/address.controller.js";
-import { requireDbUser } from "../middlewares/require-db-user.js";
+import { AuthMiddleware } from "../middlewares/auth.middleware.js";
 import { validate } from "../middlewares/validate.js";
 import { idParamSchema } from "../validations/common.validation.js";
 import { createAddressSchema, updateAddressSchema } from "../validations/address.validation.js";
 
 export const addressRouter = Router();
 
-addressRouter.use(requireDbUser);
-addressRouter.get("/", addressController.getAddresses);
-addressRouter.post("/", validate(createAddressSchema), addressController.createAddress);
-addressRouter.put("/:id", validate(idParamSchema, "params"), validate(updateAddressSchema), addressController.updateAddress);
-addressRouter.delete("/:id", validate(idParamSchema, "params"), addressController.deleteAddress);
+addressRouter.use(AuthMiddleware);
+addressRouter.get("/", addressController.getMyAddresses);
+addressRouter.post("/", validate(createAddressSchema), addressController.createMyAddress);
+addressRouter.put("/:id", validate(idParamSchema, "params"), validate(updateAddressSchema), addressController.updateMyAddress);
+addressRouter.delete("/:id", validate(idParamSchema, "params"), addressController.deleteMyAddress);

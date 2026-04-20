@@ -2,7 +2,7 @@ import type { Response } from "express";
 import { asyncHandler } from "../lib/async-handler.js";
 import { imagekitClient } from "../lib/imagekit.js";
 import { deleteFileFromR2, uploadFileToR2 } from "../services/upload.service.js";
-import type { AuthenticatedRequest } from "../types/api.js";
+import type { AuthRequest } from "../middlewares/auth.middleware.js";
 import { AppError } from "../utils/app-error.js";
 import { sendSuccess } from "../utils/response.js";
 
@@ -12,7 +12,7 @@ import { sendSuccess } from "../utils/response.js";
  * Admin only.
  */
 export const uploadFile = asyncHandler(
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
     const file = req.file;
 
     if (!file) {
@@ -31,7 +31,7 @@ export const uploadFile = asyncHandler(
  * Admin only.
  */
 export const uploadFiles = asyncHandler(
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
     const files = req.files as Express.Multer.File[] | undefined;
 
     if (!files || files.length === 0) {
@@ -52,7 +52,7 @@ export const uploadFiles = asyncHandler(
  * Admin only.
  */
 export const uploadFilesToImageKit = asyncHandler(
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
     const files = req.files as Express.Multer.File[] | undefined;
 
     if (!files || files.length === 0) {
@@ -85,7 +85,7 @@ export const uploadFilesToImageKit = asyncHandler(
  * Admin only.
  */
 export const deleteFile = asyncHandler(
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
     const { key } = req.body as { key?: string };
 
     if (!key || typeof key !== "string" || key.trim() === "") {

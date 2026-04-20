@@ -1,12 +1,14 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "../../../contexts/AuthContext";
+import { useCounts } from "../../../contexts/CountsContext";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { getCart, removeFromCart, updateCartItem, type Cart } from "@/lib/api";
 
 export default function CartPage() {
-  const { getToken, isSignedIn, isLoaded } = useAuth();
+  const { isSignedIn, isLoaded } = useAuth();
+  const { refreshCart } = useCounts();
   const [cart, setCart]         = useState<Cart | null>(null);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
@@ -14,32 +16,31 @@ export default function CartPage() {
   const [removing, setRemoving] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const token = await getToken(); if (!token) return;
-    try { setCart(await getCart(token)); }
+    try { setCart(await getCart()); }
     catch (e) { setError(e instanceof Error ? e.message : "Failed to load cart"); }
     finally { setLoading(false); }
-  }, [getToken]);
+  }, []);
 
   useEffect(() => {
     if (isLoaded && isSignedIn) load();
     else if (isLoaded) setLoading(false);
   }, [isLoaded, isSignedIn, load]);
 
-  async function handleQtyChange(productId: string, qty: number) {
-    setUpdating(productId);
+  async function handleQtyChange(cartItemId: string, qty: number) {
+    setUpdating(cartItemId);
     try {
-      const token = await getToken(); if (!token) return;
-      setCart(qty < 1 ? await removeFromCart(productId, token) : await updateCartItem(productId, qty, token));
+      setCart(qty < 1 ? await removeFromCart(cartItemId) : await updateCartItem(cartItemId, qty));
+      refreshCart();
     } catch (e) { setError(e instanceof Error ? e.message : "Update failed"); }
     finally { setUpdating(null); }
   }
 
-  async function handleRemove(productId: string) {
-    setRemoving(productId);
+  async function handleRemove(cartItemId: string) {
+    setRemoving(cartItemId);
     await new Promise((r) => setTimeout(r, 200));
     try {
-      const token = await getToken(); if (!token) return;
-      setCart(await removeFromCart(productId, token));
+      setCart(await removeFromCart(cartItemId));
+      refreshCart();
     } catch (e) { setError(e instanceof Error ? e.message : "Remove failed"); }
     finally { setRemoving(null); }
   }
@@ -132,8 +133,8 @@ export default function CartPage() {
             {/* ── Items list ── */}
             <div className="lg:col-span-3 flex flex-col gap-3">
               {items.map((item, idx) => {
-                const isRemoving = removing === item.productId;
-                const isUpdating = updating === item.productId;
+                const isRemoving = removing === item.id;
+                const isUpdating = updating === item.id;
                 const lineTotal  = item.product.price * item.quantity;
                 return (
                   <div
@@ -163,11 +164,18 @@ export default function CartPage() {
                             <Link href={`/products/${item.productId}`} className="font-black text-sm uppercase leading-tight hover:underline underline-offset-2 block truncate transition-colors hover:text-zinc-600">
                               {item.product.name}
                             </Link>
-                            <p className="font-black text-base mt-1">₹{item.product.price.toLocaleString("en-IN")}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className="font-black text-base">₹{item.product.price.toLocaleString("en-IN")}</p>
+                              {item.size && (
+                                <span className="text-[9px] font-black uppercase tracking-widest border border-zinc-200 px-2 py-0.5 text-zinc-500">
+                                  {item.size}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           {/* Remove */}
                           <button
-                            onClick={() => handleRemove(item.productId)}
+                            onClick={() => handleRemove(item.id)}
                             disabled={isUpdating || !!removing}
                             className="flex-shrink-0 w-7 h-7 flex items-center justify-center text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-all duration-200 rounded-sm disabled:opacity-30"
                             title="Remove"
@@ -182,7 +190,7 @@ export default function CartPage() {
                           {/* Qty control */}
                           <div className="flex items-center border border-zinc-200 overflow-hidden group-hover:border-zinc-300 transition-colors">
                             <button
-                              onClick={() => handleQtyChange(item.productId, item.quantity - 1)}
+                              onClick={() => handleQtyChange(item.id, item.quantity - 1)}
                               disabled={isUpdating}
                               className="w-9 h-9 flex items-center justify-center text-base font-bold hover:bg-zinc-100 active:bg-zinc-200 transition-colors disabled:opacity-30 select-none"
                             >−</button>
@@ -190,7 +198,7 @@ export default function CartPage() {
                               {item.quantity}
                             </span>
                             <button
-                              onClick={() => handleQtyChange(item.productId, item.quantity + 1)}
+                              onClick={() => handleQtyChange(item.id, item.quantity + 1)}
                               disabled={isUpdating}
                               className="w-9 h-9 flex items-center justify-center text-base font-bold hover:bg-zinc-100 active:bg-zinc-200 transition-colors disabled:opacity-30 select-none"
                             >+</button>
@@ -236,7 +244,10 @@ export default function CartPage() {
                         <div className="w-8 h-8 bg-zinc-100 flex-shrink-0 overflow-hidden">
                           {item.product.featuredImage && <img src={item.product.featuredImage} alt="" className="w-full h-full object-cover" />}
                         </div>
-                        <p className="flex-1 text-[10px] font-bold uppercase truncate text-zinc-600">{item.product.name}</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-bold uppercase truncate text-zinc-600">{item.product.name}</p>
+                          {item.size && <p className="text-[9px] font-black uppercase text-zinc-400">{item.size}</p>}
+                        </div>
                         <p className="text-[10px] font-black flex-shrink-0">×{item.quantity}</p>
                         <p className="text-[10px] font-black flex-shrink-0 w-16 text-right">₹{(item.product.price * item.quantity).toLocaleString("en-IN")}</p>
                       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "../../../../contexts/AuthContext";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -19,8 +19,10 @@ const CLOTHING_CATEGORIES = [
   "Sweatshirts","Jackets","Co-ord Sets","Innerwear","Caps","Socks",
 ];
 
+type SizeStock = { size: string; stock: number };
+
 type ProductForm = {
-  name: string; description: string; price: string; stock: string; categoryId: string;
+  name: string; description: string; price: string; stock: string; categoryId: string; productSizes: SizeStock[];
 };
 
 // Each slot is either a typed URL or a local file pending upload
@@ -28,7 +30,8 @@ type MediaSlot =
   | { kind: "url"; value: string }
   | { kind: "file"; file: File; preview: string };
 
-const EMPTY_FORM: ProductForm = { name: "", description: "", price: "", stock: "", categoryId: "" };
+const ALL_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "3XL"];
+const EMPTY_FORM: ProductForm = { name: "", description: "", price: "", stock: "", categoryId: "", productSizes: [] };
 const EMPTY_MEDIA: MediaSlot[] = [{ kind: "url", value: "" }];
 
 const inputCls = "w-full bg-white border border-zinc-200 text-black text-sm px-3 py-2 mt-1 focus:outline-none focus:border-black transition-colors placeholder-zinc-400";
@@ -228,7 +231,7 @@ export default function AdminProductsPage() {
 
   function handleEdit(product: Product) {
     setEditingId(product.id); setFormError(null);
-    setEditForm({ name: product.name, description: product.description, price: String(product.price), stock: String(product.stock), categoryId: product.categoryId });
+    setEditForm({ name: product.name, description: product.description, price: String(product.price), stock: String(product.stock), categoryId: product.categoryId, productSizes: product.productSizes ?? [] });
     const allUrls = [product.featuredImage, ...product.imageUrls].filter(Boolean) as string[];
     setEditMedia(allUrls.length ? allUrls.map((u) => ({ kind: "url" as const, value: u })) : EMPTY_MEDIA);
   }
@@ -270,7 +273,7 @@ export default function AdminProductsPage() {
       if (!token || !userId) throw new Error("Not authenticated");
       const categoryId = await resolveCategory(form.categoryId.trim(), token);
       await createProductWithMedia(
-        { name: form.name, description: form.description, price: Number(form.price), stock: Number(form.stock), sellerId: userId, categoryId },
+        { name: form.name, description: form.description, price: Number(form.price), stock: Number(form.stock), sellerId: userId, categoryId, productSizes: form.productSizes },
         slotsForApi(createMedia),
         token,
       );
@@ -287,7 +290,7 @@ export default function AdminProductsPage() {
       const categoryId = await resolveCategory(editForm.categoryId.trim(), token);
       await updateProductWithMedia(
         editingId!,
-        { name: editForm.name, description: editForm.description, price: Number(editForm.price), stock: Number(editForm.stock), sellerId: userId, categoryId },
+        { name: editForm.name, description: editForm.description, price: Number(editForm.price), stock: Number(editForm.stock), sellerId: userId, categoryId, productSizes: editForm.productSizes },
         slotsForApi(editMedia),
         token,
       );
@@ -379,6 +382,42 @@ export default function AdminProductsPage() {
                   </datalist>
                 </div>
 
+                <div>
+                  <label className={labelCls}>Sizes & Stock</label>
+                  <div className="flex flex-col gap-1.5 mt-1.5">
+                    {ALL_SIZES.map((s) => {
+                      const entry = form.productSizes.find((ps) => ps.size === s);
+                      const active = !!entry;
+                      return (
+                        <div key={s} className="flex items-center gap-2">
+                          <button type="button"
+                            onClick={() => setForm((prev) => ({
+                              ...prev,
+                              productSizes: active
+                                ? prev.productSizes.filter((ps) => ps.size !== s)
+                                : [...prev.productSizes, { size: s, stock: 0 }],
+                            }))}
+                            className={`w-12 py-1 text-[10px] font-black uppercase tracking-widest border transition-colors flex-shrink-0 ${active ? "bg-black text-white border-black" : "border-zinc-200 text-zinc-400 hover:border-black hover:text-black"}`}>
+                            {s}
+                          </button>
+                          {active && (
+                            <input
+                              type="number" min="0" step="1"
+                              value={entry.stock}
+                              onChange={(e) => setForm((prev) => ({
+                                ...prev,
+                                productSizes: prev.productSizes.map((ps) => ps.size === s ? { ...ps, stock: Number(e.target.value) } : ps),
+                              }))}
+                              placeholder="Stock"
+                              className="w-20 bg-white border border-zinc-200 text-black text-xs px-2 py-1 focus:outline-none focus:border-black transition-colors"
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <MediaManager value={createMedia} onChange={setCreateMedia} />
 
                 <button type="submit" disabled={loading}
@@ -431,6 +470,15 @@ export default function AdminProductsPage() {
                               {p.stock === 0 ? "OUT OF STOCK" : `${p.stock} in stock`}
                             </span>
                           </div>
+                          {p.productSizes?.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {p.productSizes.map((ps) => (
+                                <span key={ps.size} className="text-[8px] font-black uppercase border border-zinc-200 px-1.5 py-0.5 text-zinc-400">
+                                  {ps.size}{ps.stock > 0 ? ` (${ps.stock})` : " ✕"}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <div className="flex flex-col gap-2 flex-shrink-0">
                           <button
@@ -472,6 +520,41 @@ export default function AdminProductsPage() {
                             <div>
                               <label className={labelCls}>Stock *</label>
                               <input name="stock" type="number" required min="0" value={editForm.stock} onChange={handleEditChange} className={inputCls} />
+                            </div>
+                            <div className="sm:col-span-2">
+                              <label className={labelCls}>Sizes & Stock</label>
+                              <div className="flex flex-wrap gap-2 mt-1.5">
+                                {ALL_SIZES.map((s) => {
+                                  const entry = editForm.productSizes.find((ps) => ps.size === s);
+                                  const active = !!entry;
+                                  return (
+                                    <div key={s} className="flex items-center gap-1.5">
+                                      <button type="button"
+                                        onClick={() => setEditForm((prev) => ({
+                                          ...prev,
+                                          productSizes: active
+                                            ? prev.productSizes.filter((ps) => ps.size !== s)
+                                            : [...prev.productSizes, { size: s, stock: 0 }],
+                                        }))}
+                                        className={`w-12 py-1 text-[10px] font-black uppercase tracking-widest border transition-colors flex-shrink-0 ${active ? "bg-black text-white border-black" : "border-zinc-200 text-zinc-400 hover:border-black hover:text-black"}`}>
+                                        {s}
+                                      </button>
+                                      {active && (
+                                        <input
+                                          type="number" min="0" step="1"
+                                          value={entry.stock}
+                                          onChange={(e) => setEditForm((prev) => ({
+                                            ...prev,
+                                            productSizes: prev.productSizes.map((ps) => ps.size === s ? { ...ps, stock: Number(e.target.value) } : ps),
+                                          }))}
+                                          placeholder="Stock"
+                                          className="w-16 bg-white border border-zinc-200 text-black text-xs px-2 py-1 focus:outline-none focus:border-black transition-colors"
+                                        />
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
                             <div className="sm:col-span-2">
                               <MediaManager value={editMedia} onChange={setEditMedia} />

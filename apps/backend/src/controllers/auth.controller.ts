@@ -1,28 +1,47 @@
-import { getAuth } from "@clerk/express";
-import { verifyWebhook } from "@clerk/express/webhooks";
 import type { Request, Response } from "express";
 import { asyncHandler } from "../lib/async-handler.js";
-import { getCurrentDbUser, handleClerkWebhook } from "../services/auth.service.js";
-import { AppError } from "../utils/app-error.js";
+import { signup, signin, getCurrentDbUser, updateProfile, changePassword } from "../services/auth.service.js";
 import { sendSuccess } from "../utils/response.js";
+import type { AuthRequest } from "../middlewares/auth.middleware.js";
 
-export const authWebhook = asyncHandler(async (req: Request, res: Response) => {
-  let event;
+interface SignupProps {
+  email: string;
+  password: string
+}
 
-  try {
-    event = await verifyWebhook(req);
-  } catch {
-    throw new AppError("Invalid Clerk webhook signature", 400);
-  }
+interface SigninProps {
+  email: string;
+  password: string
+}
 
-  const result = await handleClerkWebhook(event);
-
-  return sendSuccess(res, result, "Webhook processed");
+export const signupHandler = asyncHandler(async (req: Request, res: Response) => {
+  const { email, password } = req.body as SignupProps;
+  const result = await signup(email, password);
+  return sendSuccess(res, result, "Account created", 201);
 });
 
-export const getMe = asyncHandler(async (req: Request, res: Response) => {
-  const { userId } = getAuth(req);
-  const user = await getCurrentDbUser(userId!);
+export const signinHandler = asyncHandler(async (req: Request, res: Response) => {
+  const { email, password } = req.body as SigninProps;
+  const result = await signin(email, password);
+  return sendSuccess(res, result, "Signed in");
+});
 
+export const getMe = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = await getCurrentDbUser(req.userId!);
   return sendSuccess(res, user, "Current user fetched");
+});
+
+export const updateProfileHandler = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { name, phone } = req.body as { name?: string; phone?: string };
+  const data: { name?: string; phone?: string } = {};
+  if (name !== undefined) data.name = name;
+  if (phone !== undefined) data.phone = phone;
+  const user = await updateProfile(req.userId!, data);
+  return sendSuccess(res, user, "Profile updated");
+});
+
+export const changePasswordHandler = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { currentPassword, newPassword } = req.body as { currentPassword: string; newPassword: string };
+  await changePassword(req.userId!, currentPassword, newPassword);
+  return sendSuccess(res, null, "Password changed");
 });

@@ -38,6 +38,7 @@ export const listProducts = async (query: Record<string, unknown>) => {
       include: {
         category: true,
         reviews: true,
+        productSizes: { orderBy: { size: "asc" } },
       },
       orderBy: { [sortBy]: order },
       skip,
@@ -62,6 +63,7 @@ export const getProductById = async (id: string) => {
     where: { id },
     include: {
       category: true,
+      productSizes: { orderBy: { size: "asc" } },
       reviews: {
         include: {
           user: true,
@@ -77,17 +79,27 @@ export const getProductById = async (id: string) => {
   return product;
 };
 
-export const createProduct = (data: Record<string, unknown>) => {
+type SizeStock = { size: string; stock: number };
+
+
+function parseSizes(data: Record<string, unknown>): SizeStock[] | undefined {
+  if (!Array.isArray(data.productSizes)) return undefined;
+  const sizes = data.productSizes as unknown[];
+  if (!sizes.every((s) => s && typeof s === "object" && "size" in s && "stock" in s)) return undefined;
+  return (sizes as SizeStock[]).filter((s) => typeof s.size === "string" && typeof s.stock === "number");
+}
+
+
+export const createProduct = async (data: Record<string, unknown>) => {
   const imageUrls =
     Array.isArray(data.imageUrls) && data.imageUrls.every((value) => typeof value === "string")
-      ? data.imageUrls
-      : [];
+      ? data.imageUrls : [];
   const featuredImage =
     typeof data.featuredImage === "string" && data.featuredImage.length > 0
       ? data.featuredImage
       : imageUrls[0] ?? null;
 
-  return prisma.product.create({
+  const product = await prisma.product.create({
     data: {
       name: String(data.name),
       description: String(data.description),
@@ -101,47 +113,99 @@ export const createProduct = (data: Record<string, unknown>) => {
     include: {
       category: true,
       reviews: true,
+      productSizes: { orderBy: { size: "asc" } },
     },
   });
+
+  const sizes = parseSizes(data);
+  if (sizes && sizes.length > 0) {
+    await prisma.productSize.createMany({
+      data: sizes.map((s) => ({ productId: product.id, size: s.size, stock: s.stock })),
+      skipDuplicates: true,
+    });
+    return prisma.product.findUnique({
+      where: { id: product.id },
+      include: {
+        category: true,
+        reviews: true,
+        productSizes: { orderBy: { size: "asc" } },
+      },
+    });
+  }
+
+  return product;
 };
+
 
 export const updateProduct = async (id: string, data: Record<string, unknown>) => {
   await getProductById(id);
 
   const imageUrls =
     Array.isArray(data.imageUrls) && data.imageUrls.every((value) => typeof value === "string")
-      ? data.imageUrls
-      : undefined;
+      ? data.imageUrls : undefined;
+
   const featuredImage =
     typeof data.featuredImage === "string"
       ? data.featuredImage || (imageUrls?.[0] ?? null)
       : undefined;
 
-  return prisma.product.update({
+  await prisma.product.update({
     where: { id },
     data: {
-      ...(data.name !== undefined ? { name: String(data.name) } : {}),
-      ...(data.description !== undefined ? { description: String(data.description) } : {}),
-      ...(data.price !== undefined ? { price: Number(data.price) } : {}),
-      ...(data.stock !== undefined ? { stock: Number(data.stock) } : {}),
-      ...(featuredImage !== undefined ? { featuredImage } : {}),
+      ...(data.name !== undefined ? { 
+        name: String(data.name) 
+      } : {}),
+      ...(data.description !== undefined ? { 
+        description: String(data.description) 
+      } : {}),
+      ...(data.price !== undefined ? { 
+        price: Number(data.price) 
+      } : {}),
+      ...(data.stock !== undefined ? { 
+        stock: Number(data.stock) 
+      } : {}),
+      ...(featuredImage !== undefined ? { 
+        featuredImage 
+      } : {}),
       ...(imageUrls !== undefined ? { imageUrls } : {}),
       ...(data.sellerId !== undefined ? { sellerId: String(data.sellerId) } : {}),
       ...(data.categoryId !== undefined ? { categoryId: String(data.categoryId) } : {}),
     },
+  });
+
+  // Sync productSizes if provided
+  const sizes = parseSizes(data);
+  if (sizes !== undefined) {
+    // Delete all existing sizes then recreate
+    await prisma.productSize.deleteMany({ where: { productId: id } });
+    if (sizes.length > 0) {
+      await prisma.productSize.createMany({
+        data: sizes.map((s) => ({ productId: id, size: s.size, stock: s.stock })),
+        skipDuplicates: true,
+      });
+    }
+  }
+
+  return prisma.product.findUnique({
+    where: { id },
     include: {
       category: true,
       reviews: true,
+      productSizes: { orderBy: { size: "asc" } },
     },
   });
 };
 
 export const deleteProduct = async (id: string) => {
+
   await getProductById(id);
+
   await prisma.product.delete({ where: { id } });
+  
 };
 
 export const getProductReviews = async (productId: string) => {
+
   await getProductById(productId);
 
   return prisma.review.findMany({

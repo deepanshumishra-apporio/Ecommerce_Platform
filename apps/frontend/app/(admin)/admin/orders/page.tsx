@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "../../../../contexts/AuthContext";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { getAdminOrders, updateAdminOrderStatus, type AdminOrder } from "@/lib/api";
@@ -41,7 +41,7 @@ export default function AdminOrdersPage() {
     try {
       const token = await getToken();
       if (!token) throw new Error("Not authenticated");
-      setOrders(await getAdminOrders(token));
+      setOrders(await getAdminOrders());
     } catch (e) { setError(e instanceof Error ? e.message : "Failed to load orders"); }
     finally { setLoading(false); }
   }, [getToken]);
@@ -53,7 +53,7 @@ export default function AdminOrdersPage() {
     try {
       const token = await getToken();
       if (!token) throw new Error("Not authenticated");
-      const updated = await updateAdminOrderStatus(orderId, status, token);
+      const updated = await updateAdminOrderStatus(orderId, status);
       setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: updated.status } : o));
     } catch (e) { setError(e instanceof Error ? e.message : "Failed to update status"); }
     finally { setUpdating(null); }
@@ -178,9 +178,14 @@ export default function AdminOrdersPage() {
                 <p className="font-black text-sm uppercase truncate">
                   {item.product?.name ?? "—"}
                 </p>
-                <p className="text-zinc-400 text-xs mt-0.5">
-                  {item.product?.category?.name} · Qty: {item.quantity} · ₹{item.price.toLocaleString("en-IN")}
-                </p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-zinc-400 text-xs">
+                    {item.product?.category?.name} · Qty: {item.quantity} · ₹{item.price.toLocaleString("en-IN")}
+                  </p>
+                  {item.size && (
+                    <span className="text-[9px] font-black uppercase border border-zinc-200 px-1.5 py-0.5 text-zinc-500">{item.size}</span>
+                  )}
+                </div>
               </div>
 
               <p className="font-black text-sm flex-shrink-0">
@@ -268,13 +273,25 @@ export default function AdminOrdersPage() {
           <p className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-400 mb-3">
             Delivery Address
           </p>
-          {order.user.addresses && order.user.addresses.length > 0 ? (
-            <p className="text-sm text-zinc-600 leading-relaxed">
-              {order.user.addresses[order.user.addresses.length - 1].fullAddress}
-            </p>
-          ) : (
-            <p className="text-xs text-zinc-400">No address on file</p>
-          )}
+          {(() => {
+            const raw = order.deliveryAddress
+              ?? order.user.addresses?.[order.user.addresses.length - 1]?.fullAddress;
+            if (!raw) return <p className="text-xs text-zinc-400">No address on file</p>;
+            let d = { receiverName: "", phone: "", address: raw };
+            try { d = JSON.parse(raw); } catch { /* plain text */ }
+            return (
+              <div className="flex items-start gap-3">
+                <div className="w-7 h-7 bg-zinc-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#71717a" strokeWidth="2.5" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                </div>
+                <div>
+                  {d.receiverName && <p className="text-sm font-black uppercase tracking-tight text-black">{d.receiverName}</p>}
+                  {d.phone && <p className="text-[11px] font-bold text-zinc-500 mt-0.5 tracking-wide">{d.phone}</p>}
+                  <p className="text-[11px] text-zinc-500 mt-1 leading-relaxed">{d.address}</p>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Payment */}

@@ -94,7 +94,14 @@ export async function uploadFileToR2(file: Express.Multer.File): Promise<Uploade
 
   const url = `${env.CLOUDFLARE_R2_PUBLIC_URL}/${key}`;
 
-  return { key, url, originalName: originalname, mimeType: mimetype, size, mediaType };
+  return { 
+    key, 
+    url, 
+    originalName: originalname, 
+    mimeType: mimetype, 
+    size, 
+    mediaType 
+  };
 }
 
 // ── Delete ─────────────────────────────────────────────────────────────────

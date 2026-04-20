@@ -1,31 +1,20 @@
 import type { Response } from "express";
 import { asyncHandler } from "../lib/async-handler.js";
 import * as orderService from "../services/order.service.js";
-import type { AuthenticatedRequest } from "../types/api.js";
+import type { AuthRequest } from "../middlewares/auth.middleware.js";
 import { sendSuccess } from "../utils/response.js";
 
-export const createOrder = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-  const order = await orderService.createOrder(req.dbUser!.id, req.body);
+export const createOrder = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const order = await orderService.createOrder(req.userId!, req.body);
   return sendSuccess(res, order, "Order created", 201);
 });
 
-export const getOrders = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-  const orders = await orderService.getUserOrders(req.dbUser!.id);
+export const getMyOrders = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const orders = await orderService.getUserOrders(req.userId!);
   return sendSuccess(res, orders, "Orders fetched");
 });
 
-export const getOrder = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-  const order = await orderService.getOrderById(
-    String(req.params.id),
-    req.dbUser!.id,
-    req.dbUser!.role === "ADMIN",
-  );
+export const getMyOrderById = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const order = await orderService.getOrderById(String(req.params.id), req.userId!);
   return sendSuccess(res, order, "Order fetched");
 });
-
-export const updateOrderStatus = asyncHandler(
-  async (req: AuthenticatedRequest, res: Response) => {
-    const order = await orderService.updateOrderStatus(String(req.params.id), String(req.body.status));
-    return sendSuccess(res, order, "Order status updated");
-  },
-);

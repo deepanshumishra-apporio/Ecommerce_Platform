@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
-import { ClerkProvider } from "@clerk/nextjs";
-import UserSync from "../components/UserSync";
+import { AuthProvider } from "../contexts/AuthContext";
+import { CountsProvider } from "../contexts/CountsContext";
 import Navbar from "../components/Navbar";
 import "./globals.css";
 
@@ -22,14 +22,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
-      <html lang="en" className={`${geist.variable} h-full antialiased`}>
-        <body className="min-h-full flex flex-col">
-          <UserSync />
-          <Navbar />
-          <main className="flex-1">{children}</main>
-        </body>
-      </html>
-    </ClerkProvider>
+    <html lang="en" className={`${geist.variable} h-full antialiased`}>
+      <body className="min-h-full flex flex-col">
+        <AuthProvider>
+          <CountsProvider>
+            <Navbar />
+            <main className="flex-1">{children}</main>
+          </CountsProvider>
+        </AuthProvider>
+      </body>
+    </html>
   );
 }

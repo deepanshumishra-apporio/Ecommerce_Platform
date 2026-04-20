@@ -166,16 +166,16 @@ export type WishlistItemWhereInput = {
   id?: Prisma.StringFilter<"WishlistItem"> | string
   wishlistId?: Prisma.StringFilter<"WishlistItem"> | string
   productId?: Prisma.StringFilter<"WishlistItem"> | string
-  wishlist?: Prisma.XOR<Prisma.WishlistScalarRelationFilter, Prisma.WishlistWhereInput>
   product?: Prisma.XOR<Prisma.ProductScalarRelationFilter, Prisma.ProductWhereInput>
+  wishlist?: Prisma.XOR<Prisma.WishlistScalarRelationFilter, Prisma.WishlistWhereInput>
 }
 
 export type WishlistItemOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   wishlistId?: Prisma.SortOrder
   productId?: Prisma.SortOrder
-  wishlist?: Prisma.WishlistOrderByWithRelationInput
   product?: Prisma.ProductOrderByWithRelationInput
+  wishlist?: Prisma.WishlistOrderByWithRelationInput
 }
 
 export type WishlistItemWhereUniqueInput = Prisma.AtLeast<{
@@ -186,8 +186,8 @@ export type WishlistItemWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.WishlistItemWhereInput | Prisma.WishlistItemWhereInput[]
   wishlistId?: Prisma.StringFilter<"WishlistItem"> | string
   productId?: Prisma.StringFilter<"WishlistItem"> | string
-  wishlist?: Prisma.XOR<Prisma.WishlistScalarRelationFilter, Prisma.WishlistWhereInput>
   product?: Prisma.XOR<Prisma.ProductScalarRelationFilter, Prisma.ProductWhereInput>
+  wishlist?: Prisma.XOR<Prisma.WishlistScalarRelationFilter, Prisma.WishlistWhereInput>
 }, "id" | "wishlistId_productId">
 
 export type WishlistItemOrderByWithAggregationInput = {
@@ -210,8 +210,8 @@ export type WishlistItemScalarWhereWithAggregatesInput = {
 
 export type WishlistItemCreateInput = {
   id?: string
-  wishlist: Prisma.WishlistCreateNestedOneWithoutItemsInput
   product: Prisma.ProductCreateNestedOneWithoutWishlistItemsInput
+  wishlist: Prisma.WishlistCreateNestedOneWithoutItemsInput
 }
 
 export type WishlistItemUncheckedCreateInput = {
@@ -222,8 +222,8 @@ export type WishlistItemUncheckedCreateInput = {
 
 export type WishlistItemUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  wishlist?: Prisma.WishlistUpdateOneRequiredWithoutItemsNestedInput
   product?: Prisma.ProductUpdateOneRequiredWithoutWishlistItemsNestedInput
+  wishlist?: Prisma.WishlistUpdateOneRequiredWithoutItemsNestedInput
 }
 
 export type WishlistItemUncheckedUpdateInput = {
@@ -492,24 +492,24 @@ export type WishlistItemSelect<ExtArgs extends runtime.Types.Extensions.Internal
   id?: boolean
   wishlistId?: boolean
   productId?: boolean
-  wishlist?: boolean | Prisma.WishlistDefaultArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
+  wishlist?: boolean | Prisma.WishlistDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["wishlistItem"]>
 
 export type WishlistItemSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   wishlistId?: boolean
   productId?: boolean
-  wishlist?: boolean | Prisma.WishlistDefaultArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
+  wishlist?: boolean | Prisma.WishlistDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["wishlistItem"]>
 
 export type WishlistItemSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   wishlistId?: boolean
   productId?: boolean
-  wishlist?: boolean | Prisma.WishlistDefaultArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
+  wishlist?: boolean | Prisma.WishlistDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["wishlistItem"]>
 
 export type WishlistItemSelectScalar = {
@@ -520,23 +520,23 @@ export type WishlistItemSelectScalar = {
 
 export type WishlistItemOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "wishlistId" | "productId", ExtArgs["result"]["wishlistItem"]>
 export type WishlistItemInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  wishlist?: boolean | Prisma.WishlistDefaultArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
+  wishlist?: boolean | Prisma.WishlistDefaultArgs<ExtArgs>
 }
 export type WishlistItemIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  wishlist?: boolean | Prisma.WishlistDefaultArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
+  wishlist?: boolean | Prisma.WishlistDefaultArgs<ExtArgs>
 }
 export type WishlistItemIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  wishlist?: boolean | Prisma.WishlistDefaultArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
+  wishlist?: boolean | Prisma.WishlistDefaultArgs<ExtArgs>
 }
 
 export type $WishlistItemPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "WishlistItem"
   objects: {
-    wishlist: Prisma.$WishlistPayload<ExtArgs>
     product: Prisma.$ProductPayload<ExtArgs>
+    wishlist: Prisma.$WishlistPayload<ExtArgs>
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -936,8 +936,8 @@ readonly fields: WishlistItemFieldRefs;
  */
 export interface Prisma__WishlistItemClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
-  wishlist<T extends Prisma.WishlistDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.WishlistDefaultArgs<ExtArgs>>): Prisma.Prisma__WishlistClient<runtime.Types.Result.GetResult<Prisma.$WishlistPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   product<T extends Prisma.ProductDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ProductDefaultArgs<ExtArgs>>): Prisma.Prisma__ProductClient<runtime.Types.Result.GetResult<Prisma.$ProductPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  wishlist<T extends Prisma.WishlistDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.WishlistDefaultArgs<ExtArgs>>): Prisma.Prisma__WishlistClient<runtime.Types.Result.GetResult<Prisma.$WishlistPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.

@@ -1,11 +1,13 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "../contexts/AuthContext";
+import { useCounts } from "../contexts/CountsContext";
 import { useEffect, useState } from "react";
 import { addToWishlist, removeFromWishlist, getWishlist } from "@/lib/api";
 
 export default function WishlistButton({ productId, size = 18 }: { productId: string; size?: number }) {
-  const { getToken, isSignedIn } = useAuth();
+  const { isSignedIn } = useAuth();
+  const { refreshWishlist } = useCounts();
   const [liked, setLiked]       = useState(false);
   const [loading, setLoading]   = useState(false);
 
@@ -13,23 +15,20 @@ export default function WishlistButton({ productId, size = 18 }: { productId: st
     if (!isSignedIn) return;
     (async () => {
       try {
-        const token = await getToken();
-        if (!token) return;
-        const w = await getWishlist(token);
+        const w = await getWishlist();
         setLiked(w.items.some((i) => i.productId === productId));
       } catch { /* ignore */ }
     })();
-  }, [isSignedIn, getToken, productId]);
+  }, [isSignedIn, productId]);
 
   async function toggle(e: React.MouseEvent) {
     e.preventDefault(); e.stopPropagation();
     if (!isSignedIn) return;
-    const token = await getToken();
-    if (!token) return;
     setLoading(true);
     try {
-      if (liked) { await removeFromWishlist(productId, token); setLiked(false); }
-      else        { await addToWishlist(productId, token);      setLiked(true);  }
+      if (liked) { await removeFromWishlist(productId); setLiked(false); }
+      else        { await addToWishlist(productId);      setLiked(true);  }
+      await refreshWishlist();
     } finally { setLoading(false); }
   }
 

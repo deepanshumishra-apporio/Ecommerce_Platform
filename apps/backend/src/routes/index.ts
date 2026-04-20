@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { authLimiter, generalLimiter, paymentLimiter } from "../middlewares/rate-limit.js";
 import { addressRouter } from "./address.routes.js";
 import { adminRouter } from "./admin.routes.js";
 import { authRouter } from "./auth.routes.js";
@@ -14,15 +15,17 @@ import { wishlistRouter } from "./wishlist.routes.js";
 
 export const apiRouter = Router();
 
-apiRouter.use("/auth", authRouter);
+apiRouter.use(generalLimiter);
+
+apiRouter.use("/auth", authLimiter, authRouter);
 apiRouter.use("/products", productRouter);
 apiRouter.use("/categories", categoryRouter);
 apiRouter.use("/cart", cartRouter);
 apiRouter.use("/wishlist", wishlistRouter);
 apiRouter.use("/orders", orderRouter);
-apiRouter.use("/payments", paymentRouter);
+apiRouter.use("/payments", paymentLimiter, paymentRouter);
 apiRouter.use("/reviews", reviewRouter);
 apiRouter.use("/addresses", addressRouter);
-// apiRouter.use("/coupons", couponRouter);
+apiRouter.use("/coupons", couponRouter);
 apiRouter.use("/admin", adminRouter);
-// apiRouter.use("/upload", uploadRouter);
+apiRouter.use("/upload", uploadRouter);

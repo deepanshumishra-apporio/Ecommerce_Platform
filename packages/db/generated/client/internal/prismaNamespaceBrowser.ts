@@ -53,6 +53,7 @@ export const AnyNull = runtime.AnyNull
 export const ModelName = {
   User: 'User',
   Product: 'Product',
+  ProductSize: 'ProductSize',
   Category: 'Category',
   Cart: 'Cart',
   CartItem: 'CartItem',
@@ -84,11 +85,13 @@ export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof
 
 export const UserScalarFieldEnum = {
   id: 'id',
-  clerkId: 'clerkId',
   email: 'email',
-  role: 'role',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  role: 'role',
+  updatedAt: 'updatedAt',
+  password: 'password',
+  name: 'name',
+  phone: 'phone'
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
@@ -100,15 +103,25 @@ export const ProductScalarFieldEnum = {
   description: 'description',
   price: 'price',
   stock: 'stock',
-  featuredImage: 'featuredImage',
-  imageUrls: 'imageUrls',
   sellerId: 'sellerId',
   categoryId: 'categoryId',
   createdAt: 'createdAt',
+  featuredImage: 'featuredImage',
+  imageUrls: 'imageUrls',
   updatedAt: 'updatedAt'
 } as const
 
 export type ProductScalarFieldEnum = (typeof ProductScalarFieldEnum)[keyof typeof ProductScalarFieldEnum]
+
+
+export const ProductSizeScalarFieldEnum = {
+  id: 'id',
+  productId: 'productId',
+  size: 'size',
+  stock: 'stock'
+} as const
+
+export type ProductSizeScalarFieldEnum = (typeof ProductSizeScalarFieldEnum)[keyof typeof ProductSizeScalarFieldEnum]
 
 
 export const CategoryScalarFieldEnum = {
@@ -131,7 +144,8 @@ export const CartItemScalarFieldEnum = {
   id: 'id',
   cartId: 'cartId',
   productId: 'productId',
-  quantity: 'quantity'
+  quantity: 'quantity',
+  size: 'size'
 } as const
 
 export type CartItemScalarFieldEnum = (typeof CartItemScalarFieldEnum)[keyof typeof CartItemScalarFieldEnum]
@@ -160,6 +174,7 @@ export const OrderScalarFieldEnum = {
   status: 'status',
   paymentStatus: 'paymentStatus',
   totalAmount: 'totalAmount',
+  deliveryAddress: 'deliveryAddress',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -172,7 +187,8 @@ export const OrderItemScalarFieldEnum = {
   orderId: 'orderId',
   productId: 'productId',
   quantity: 'quantity',
-  price: 'price'
+  price: 'price',
+  size: 'size'
 } as const
 
 export type OrderItemScalarFieldEnum = (typeof OrderItemScalarFieldEnum)[keyof typeof OrderItemScalarFieldEnum]
@@ -206,11 +222,11 @@ export type AddressScalarFieldEnum = (typeof AddressScalarFieldEnum)[keyof typeo
 export const TransactionScalarFieldEnum = {
   id: 'id',
   orderId: 'orderId',
-  providerOrderId: 'providerOrderId',
   razorpayId: 'razorpayId',
   amount: 'amount',
   status: 'status',
   createdAt: 'createdAt',
+  providerOrderId: 'providerOrderId',
   updatedAt: 'updatedAt'
 } as const
 

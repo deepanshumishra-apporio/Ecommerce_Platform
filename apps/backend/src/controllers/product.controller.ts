@@ -32,52 +32,127 @@ async function resolveMediaFromRequest(
   return result;
 }
 
-export const listProducts = asyncHandler(async (req: Request, res: Response) => {
+function parseJsonField(body: Record<string, unknown>, field: string) {
+
+  if (typeof body[field] === "string") {
+    try { 
+      body[field] = JSON.parse(body[field] as string); 
+    } catch {
+       /* ignore */ 
+      }
+  }
+
+}
+
+
+export const getAllProducts = asyncHandler(async (req: Request, res: Response) => {
+
   const products = await productService.listProducts(req.query);
-  return sendSuccess(res, products, "Products fetched");
+
+  return sendSuccess(
+    res, 
+    products, 
+    "Products fetched"
+  );
+
 });
 
-export const getProduct = asyncHandler(async (req: Request, res: Response) => {
+
+export const getProductById = asyncHandler(async (req: Request, res: Response) => {
+
   const product = await productService.getProductById(String(req.params.id));
-  return sendSuccess(res, product, "Product fetched");
+
+  return sendSuccess(
+    res, 
+    product, 
+    "Product fetched"
+  );
+
 });
 
-export const createProduct = asyncHandler(async (req: Request, res: Response) => {
+
+export const addProduct = asyncHandler(async (req: Request, res: Response) => {
+
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
-  const body = { ...req.body };
+
+  const body: Record<string, unknown> = { ...req.body };
 
   if (body.mediaSlots) {
     const slots: MediaSlotInfo[] = JSON.parse(body.mediaSlots as string);
+
     const media = await resolveMediaFromRequest(slots, files);
+
     delete body.mediaSlots;
+
     Object.assign(body, media);
   }
+  parseJsonField(body, "productSizes");
 
   const product = await productService.createProduct(body);
-  return sendSuccess(res, product, "Product created", 201);
+
+  return sendSuccess(
+    res, 
+    product, 
+    "Product created", 
+    201
+  );
+
 });
 
-export const updateProduct = asyncHandler(async (req: Request, res: Response) => {
+
+export const editProduct = asyncHandler(async (req: Request, res: Response) => {
+
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
-  const body = { ...req.body };
+
+  const body: Record<string, unknown> = { ...req.body };
 
   if (body.mediaSlots) {
     const slots: MediaSlotInfo[] = JSON.parse(body.mediaSlots as string);
+
     const media = await resolveMediaFromRequest(slots, files);
+
     delete body.mediaSlots;
+
     Object.assign(body, media);
+
   }
+  parseJsonField(body, "productSizes");
 
-  const product = await productService.updateProduct(String(req.params.id), body);
-  return sendSuccess(res, product, "Product updated");
+  const product = await productService.updateProduct(
+    String(req.params.id),
+    body
+  );
+  
+  return sendSuccess(
+    res, 
+    product, 
+    "Product updated"
+  );
+
 });
 
-export const deleteProduct = asyncHandler(async (req: Request, res: Response) => {
+
+export const removeProduct = asyncHandler(async (req: Request, res: Response) => {
+
   await productService.deleteProduct(String(req.params.id));
-  return sendSuccess(res, null, "Product deleted");
+
+  return sendSuccess(
+    res, 
+    null, 
+    "Product deleted"
+  );
+
 });
 
-export const listProductReviews = asyncHandler(async (req: Request, res: Response) => {
+
+export const getProductReviews = asyncHandler(async (req: Request, res: Response) => {
+
   const reviews = await productService.getProductReviews(String(req.params.id));
-  return sendSuccess(res, reviews, "Product reviews fetched");
+
+  return sendSuccess(
+    res, 
+    reviews, 
+    "Product reviews fetched"
+  );
+
 });

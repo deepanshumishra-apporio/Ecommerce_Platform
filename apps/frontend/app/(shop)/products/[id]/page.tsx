@@ -157,6 +157,7 @@ export default async function ProductPage({ params }: Props) {
               productName={product.name}
               price={product.price}
               inStock={product.stock > 0}
+              productSizes={product.productSizes ?? []}
             />
           </div>
         </div>
@@ -192,6 +193,13 @@ export default async function ProductPage({ params }: Props) {
                         <div className="flex items-center gap-1 mt-1">
                           <span className="text-amber-400 text-xs">{"★".repeat(Math.round(pAvg))}</span>
                           <span className="text-[9px] text-zinc-400 font-bold">{pAvg.toFixed(1)}</span>
+                        </div>
+                      )}
+                      {p.productSizes?.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {p.productSizes.map((ps) => (
+                            <span key={ps.size} className="text-[8px] font-black uppercase border border-zinc-200 px-1.5 py-0.5 text-zinc-400">{ps.size}</span>
+                          ))}
                         </div>
                       )}
                       <div className="flex items-center justify-between mt-1.5">

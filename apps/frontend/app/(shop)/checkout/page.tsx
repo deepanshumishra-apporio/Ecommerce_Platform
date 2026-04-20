@@ -1,9 +1,16 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "../../../contexts/AuthContext";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { createAddress, createOrder, createPayment, getCart, verifyPayment, type Cart } from "@/lib/api";
+import axios from "axios";
+import { createAddress, createOrder, createPayment, getCart, getAddresses, verifyPayment, type Cart, type Address } from "@/lib/api";
+
+type AddressData = { receiverName: string; phone: string; address: string };
+function decodeAddress(fullAddress: string): AddressData {
+  try { return JSON.parse(fullAddress); }
+  catch { return { receiverName: "", phone: "", address: fullAddress }; }
+}
 
 declare global {
   interface Window {
@@ -36,7 +43,7 @@ function deliveryRange() {
 }
 
 export default function CheckoutPage() {
-  const { getToken, isSignedIn, isLoaded } = useAuth();
+  const { isSignedIn, isLoaded } = useAuth();
   const [cart, setCart]       = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
   const [step, setStep]       = useState<Step>("address");
@@ -45,18 +52,31 @@ export default function CheckoutPage() {
   const [error, setError]     = useState<string | null>(null);
 
   const [address, setAddress]             = useState("");
+  const [newName, setNewName]             = useState("");
+  const [newPhone, setNewPhone]           = useState("");
   const [coords, setCoords]               = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating]           = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [coupon, setCoupon]               = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"razorpay">("razorpay");
 
+  const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
+  const [selectedAddrId, setSelectedAddrId] = useState<string | null>(null);
+
   const load = useCallback(async () => {
-    const token = await getToken(); if (!token) return;
-    try { setCart(await getCart(token)); }
+    try {
+      const [cartData, addrs] = await Promise.all([getCart(), getAddresses()]);
+      setCart(cartData);
+      setSavedAddresses(addrs);
+      if (addrs.length > 0) {
+        const first = addrs[0];
+        setSelectedAddrId(first.id);
+        setAddress(decodeAddress(first.fullAddress).address);
+      }
+    }
     catch (e) { setError(e instanceof Error ? e.message : "Failed to load cart"); }
     finally { setLoading(false); }
-  }, [getToken]);
+  }, []);
 
   useEffect(() => {
     if (isLoaded && isSignedIn) load();
@@ -70,8 +90,7 @@ export default function CheckoutPage() {
       async ({ coords: c }) => {
         setCoords({ lat: c.latitude, lng: c.longitude });
         try {
-          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${c.latitude}&lon=${c.longitude}&format=json`);
-          const d = await res.json();
+          const { data: d } = await axios.get(`https://nominatim.openstreetmap.org/reverse?lat=${c.latitude}&lon=${c.longitude}&format=json`);
           if (d.display_name) setAddress(d.display_name);
         } catch { /* use coords only */ }
         setLocating(false);
@@ -81,23 +100,33 @@ export default function CheckoutPage() {
   }
 
   async function handlePay() {
-    if (!address.trim()) { setError("Enter delivery address first"); setStep("address"); return; }
+    if (!selectedAddrId) {
+      if (!newName.trim()) { setError("Enter receiver name"); setStep("address"); return; }
+      if (!newPhone.trim()) { setError("Enter mobile number"); setStep("address"); return; }
+      if (!address.trim()) { setError("Enter delivery address"); setStep("address"); return; }
+    }
+    if (selectedAddrId && !address.trim()) { setError("No address selected"); setStep("address"); return; }
     setPlacing(true); setError(null);
     try {
-      const token = await getToken(); if (!token) throw new Error("Not authenticated");
-      await createAddress({ fullAddress: address, latitude: coords?.lat ?? 0, longitude: coords?.lng ?? 0 }, token);
-      const order   = await createOrder({ ...(coupon ? { couponCode: coupon } : {}) }, token);
+      if (!selectedAddrId) {
+        const fullAddress = JSON.stringify({ receiverName: newName.trim(), phone: newPhone.trim(), address: address.trim() });
+        const created = await createAddress({ fullAddress, latitude: coords?.lat ?? 0, longitude: coords?.lng ?? 0 });
+        setSavedAddresses(prev => [...prev, created]);
+        setSelectedAddrId(created.id);
+      }
+      const addrJson = savedAddresses.find(a => a.id === selectedAddrId)?.fullAddress
+        ?? JSON.stringify({ receiverName: newName.trim(), phone: newPhone.trim(), address: address.trim() });
+      const order   = await createOrder({ ...(coupon ? { couponCode: coupon } : {}), deliveryAddress: addrJson });
       const loaded  = await loadRazorpayScript();
       if (!loaded) throw new Error("Could not load Razorpay. Check your connection.");
-      const payment = await createPayment(order.id, token);
+      const payment = await createPayment(order.id);
       const rzp = new window.Razorpay({
         key: payment.keyId, amount: payment.paymentOrder.amount, currency: payment.paymentOrder.currency,
         order_id: payment.paymentOrder.id, name: "Deep Store",
         description: `Order #${order.id.slice(0, 8).toUpperCase()}`,
         handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
           try {
-            const t = await getToken();
-            await verifyPayment({ orderId: order.id, razorpayOrderId: response.razorpay_order_id, razorpayPaymentId: response.razorpay_payment_id, razorpaySignature: response.razorpay_signature }, t!);
+            await verifyPayment({ orderId: order.id, razorpayOrderId: response.razorpay_order_id, razorpayPaymentId: response.razorpay_payment_id, razorpaySignature: response.razorpay_signature });
             setOrderId(order.id);
           } catch (e) { setError(e instanceof Error ? e.message : "Payment verification failed"); }
           finally { setPlacing(false); }
@@ -223,35 +252,137 @@ export default function CheckoutPage() {
 
             {/* STEP 1 — Address */}
             {step === "address" && (
-              <div className="border border-zinc-200 p-6 animate-fadeIn">
-                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-400 mb-5 pb-3 border-b border-zinc-100">1 — Delivery Address</p>
+              <div className="border border-zinc-200 p-6">
+                <div className="flex items-center gap-2 mb-5 pb-4 border-b border-zinc-100">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  <p className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-700">Delivery Address</p>
+                </div>
+
                 <div className="flex flex-col gap-3">
-                  <textarea
-                    rows={4}
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="House / Flat No., Street, Area, City, State, PIN…"
-                    className="border border-zinc-200 px-3 py-2 text-sm focus:outline-none focus:border-black transition-colors resize-none w-full"
-                  />
-                  <button
-                    type="button" onClick={detectLocation} disabled={locating}
-                    className="self-start flex items-center gap-2 text-[10px] font-black uppercase tracking-widest border border-zinc-200 px-3 py-2 hover:border-black active:scale-[0.97] transition-all disabled:opacity-40"
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/>
-                    </svg>
-                    {locating ? "Detecting…" : "Use My Location"}
-                  </button>
-                  {locationError && <p className="text-red-500 text-xs font-bold">{locationError}</p>}
-                  {coords && (
-                    <p className="text-zinc-400 text-[10px] font-bold flex items-center gap-1">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                      {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
-                    </p>
+                  {/* Saved addresses */}
+                  {savedAddresses.length > 0 && (
+                    <>
+                      <p className="text-[9px] font-black uppercase tracking-[0.35em] text-zinc-400">Saved Addresses</p>
+                      {savedAddresses.map((addr) => {
+                        const d = decodeAddress(addr.fullAddress);
+                        const selected = selectedAddrId === addr.id;
+                        return (
+                          <button
+                            key={addr.id}
+                            type="button"
+                            onClick={() => { setSelectedAddrId(addr.id); setAddress(d.address); setCoords(null); }}
+                            className={`text-left w-full p-4 border-2 transition-all duration-200 group ${selected ? "border-black bg-zinc-50" : "border-zinc-200 hover:border-zinc-400"}`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className={`mt-0.5 w-4 h-4 border-2 flex items-center justify-center flex-shrink-0 transition-colors ${selected ? "border-black bg-black" : "border-zinc-300"}`}>
+                                {selected && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="text-sm font-black uppercase">{d.receiverName || "—"}</p>
+                                  {selected && <span className="text-[8px] font-black uppercase tracking-widest bg-black text-white px-1.5 py-0.5">Selected</span>}
+                                </div>
+                                <p className="text-[11px] font-bold text-zinc-500 mt-0.5 flex items-center gap-1">
+                                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.15 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.08 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 16z"/></svg>
+                                  {d.phone}
+                                </p>
+                                <p className="text-xs text-zinc-500 mt-1 leading-relaxed">{d.address}</p>
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+
+                      {/* New address option */}
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedAddrId(null); setAddress(""); setCoords(null); }}
+                        className={`text-left w-full p-3 border-2 transition-all duration-200 ${selectedAddrId === null ? "border-black bg-zinc-50" : "border-dashed border-zinc-300 hover:border-zinc-500"}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-4 h-4 border-2 flex items-center justify-center flex-shrink-0 transition-colors ${selectedAddrId === null ? "border-black bg-black" : "border-zinc-300"}`}>
+                            {selectedAddrId === null
+                              ? <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                              : <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            }
+                          </div>
+                          <p className="text-xs font-black uppercase tracking-widest text-zinc-600">Use a different address</p>
+                        </div>
+                      </button>
+                    </>
                   )}
+
+                  {/* Manual entry */}
+                  {selectedAddrId === null && (
+                    <div className="border border-zinc-200 bg-zinc-50 p-4 flex flex-col gap-3">
+                      <p className="text-[9px] font-black uppercase tracking-[0.35em] text-zinc-400">New Delivery Address</p>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Receiver Name</label>
+                          <input
+                            type="text"
+                            value={newName}
+                            onChange={e => setNewName(e.target.value)}
+                            placeholder="John Doe"
+                            className="border border-zinc-200 px-3 py-2.5 text-sm focus:outline-none focus:border-black transition-colors bg-white w-full"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Mobile Number</label>
+                          <input
+                            type="tel"
+                            value={newPhone}
+                            onChange={e => setNewPhone(e.target.value)}
+                            placeholder="+91 98765 43210"
+                            className="border border-zinc-200 px-3 py-2.5 text-sm focus:outline-none focus:border-black transition-colors bg-white w-full"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Full Address</label>
+                        <textarea
+                          rows={3}
+                          value={address}
+                          onChange={(e) => setAddress(e.target.value)}
+                          placeholder="House / Flat No., Street, Area, City, State, PIN…"
+                          className="border border-zinc-200 px-3 py-2.5 text-sm focus:outline-none focus:border-black transition-colors resize-none w-full bg-white"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button" onClick={detectLocation} disabled={locating}
+                          className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest border border-zinc-200 bg-white px-3 py-2 hover:border-black active:scale-[0.97] transition-all disabled:opacity-40"
+                        >
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg>
+                          {locating ? "Detecting…" : "Use My Location"}
+                        </button>
+                        <Link href="/profile" className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-black transition-colors">
+                          Manage saved addresses →
+                        </Link>
+                      </div>
+                      {locationError && <p className="text-red-500 text-xs font-bold">{locationError}</p>}
+                      {coords && (
+                        <p className="text-zinc-400 text-[10px] font-bold flex items-center gap-1">
+                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                          {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   <button
-                    onClick={() => { if (!address.trim()) { setError("Enter your delivery address"); return; } setError(null); setStep("review"); }}
-                    className="mt-2 bg-black text-white text-xs font-black uppercase tracking-widest py-3 hover:bg-zinc-800 active:scale-[0.98] transition-all duration-200 group flex items-center justify-center gap-2"
+                    onClick={() => {
+                      if (!selectedAddrId) {
+                        if (!newName.trim()) { setError("Enter receiver name"); return; }
+                        if (!newPhone.trim()) { setError("Enter mobile number"); return; }
+                        if (!address.trim()) { setError("Enter delivery address"); return; }
+                      }
+                      setError(null); setStep("review");
+                    }}
+                    className="mt-1 bg-black text-white text-xs font-black uppercase tracking-widest py-3.5 hover:bg-zinc-800 active:scale-[0.98] transition-all duration-200 group flex items-center justify-center gap-2"
                   >
                     Continue to Review
                     <svg className="transition-transform group-hover:translate-x-1 duration-200" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -262,85 +393,124 @@ export default function CheckoutPage() {
 
             {/* STEP 2 — Review */}
             {step === "review" && (
-              <div className="border border-zinc-200 p-6">
-                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-400 mb-5 pb-3 border-b border-zinc-100">2 — Review Order</p>
+              <div className="border border-zinc-200">
 
-                {/* Address */}
-                <div className="mb-5 p-3 bg-zinc-50 border border-zinc-100 flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-400 mb-1 flex items-center gap-1">
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                      Delivering to
-                    </p>
-                    <p className="text-sm text-zinc-700 leading-relaxed">{address}</p>
-                  </div>
-                  <button onClick={() => setStep("address")} className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-black whitespace-nowrap transition-colors border border-zinc-200 px-2 py-1 hover:border-black">Edit</button>
+                {/* Section header */}
+                <div className="flex items-center gap-2 px-6 py-4 border-b border-zinc-100">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2"/></svg>
+                  <p className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-700">Review Order</p>
                 </div>
 
-                {/* Delivery estimate banner */}
-                <div className="mb-4 flex items-center gap-2 px-3 py-2.5 bg-[rgba(14,165,233,0.06)] border border-[rgba(14,165,233,0.2)]">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" strokeWidth="2.5" strokeLinecap="round"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[#0EA5E9]">
-                    Estimated Delivery: <span className="text-black">{range}</span>
-                  </p>
-                </div>
+                <div className="p-6 flex flex-col gap-5">
 
-                {/* Product list */}
-                <div className="flex flex-col">
-                  {cart.items.map((item, idx) => (
-                    <div
-                      key={item.id}
-                      className="flex gap-3 py-4 border-b border-zinc-100 last:border-0 items-start group hover:bg-zinc-50 -mx-3 px-3 transition-colors duration-150"
-                      style={{ animationDelay: `${idx * 50}ms` }}
-                    >
-                      {/* Image */}
-                      <div className="w-16 h-16 bg-zinc-50 flex-shrink-0 overflow-hidden border border-zinc-100">
-                        {item.product.featuredImage
-                          ? <img src={item.product.featuredImage} alt={item.product.name} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                          : <div className="w-full h-full flex items-center justify-center text-zinc-300 text-[10px]">IMG</div>
-                        }
-                      </div>
-
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-black text-sm uppercase truncate">{item.product.name}</p>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mt-0.5">{item.product.category?.name}</p>
-
-                        {/* Details grid */}
-                        <div className="grid grid-cols-3 gap-2 mt-2">
-                          <div>
-                            <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400">Price</p>
-                            <p className="text-xs font-black">₹{item.product.price.toLocaleString("en-IN")}</p>
+                  {/* ── Delivery Address ── */}
+                  <div className="border border-zinc-200 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-400 flex items-center gap-1.5">
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        Delivering To
+                      </p>
+                      <button onClick={() => setStep("address")} className="text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-black transition-colors border border-zinc-200 px-2.5 py-1 hover:border-black">
+                        Change
+                      </button>
+                    </div>
+                    {(() => {
+                      const saved = savedAddresses.find(a => a.id === selectedAddrId);
+                      const d = saved ? decodeAddress(saved.fullAddress) : { receiverName: newName, phone: newPhone, address };
+                      return (
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 bg-black flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                           </div>
                           <div>
-                            <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400">Qty</p>
-                            <p className="text-xs font-black">{item.quantity}</p>
-                          </div>
-                          <div>
-                            <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400">Subtotal</p>
-                            <p className="text-xs font-black">₹{(item.product.price * item.quantity).toLocaleString("en-IN")}</p>
+                            <p className="text-sm font-black uppercase">{d.receiverName || "—"}</p>
+                            <p className="text-xs text-zinc-500 font-bold mt-0.5 flex items-center gap-1">
+                              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.15 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.08 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 16z"/></svg>
+                              {d.phone || "—"}
+                            </p>
+                            <p className="text-xs text-zinc-600 mt-1 leading-relaxed">{d.address || "—"}</p>
                           </div>
                         </div>
-
-                        {/* Per-item delivery */}
-                        <p className="text-[10px] font-bold text-[#0EA5E9] mt-1.5 flex items-center gap-1">
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-                          Arrives {range}
-                        </p>
-                      </div>
-
-                      <p className="font-black text-sm flex-shrink-0">₹{(item.product.price * item.quantity).toLocaleString("en-IN")}</p>
+                      );
+                    })()}
+                    {/* Delivery estimate */}
+                    <div className="mt-3 pt-3 border-t border-zinc-100 flex items-center gap-2">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" strokeWidth="2.5" strokeLinecap="round"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                      <p className="text-[10px] font-black text-[#0EA5E9] uppercase tracking-widest">
+                        Est. Delivery: <span className="text-black">{range}</span>
+                      </p>
                     </div>
-                  ))}
-                </div>
+                  </div>
 
-                <button
-                  onClick={() => { setError(null); setStep("payment"); }}
-                  className="mt-5 w-full bg-black text-white text-xs font-black uppercase tracking-widest py-3 hover:bg-zinc-800 active:scale-[0.98] transition-all duration-200 group flex items-center justify-center gap-2"
-                >
-                  Continue to Payment
-                  <svg className="transition-transform group-hover:translate-x-1 duration-200" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                </button>
+                  {/* ── Products ── */}
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-400 mb-3">
+                      Items ({cart.items.length})
+                    </p>
+                    <div className="flex flex-col gap-px bg-zinc-100 border border-zinc-100">
+                      {cart.items.map((item) => (
+                        <div key={item.id} className="bg-white flex gap-4 p-4 items-start group hover:bg-zinc-50 transition-colors">
+                          {/* Image */}
+                          <div className="w-16 h-16 bg-zinc-100 flex-shrink-0 overflow-hidden border border-zinc-200">
+                            {item.product.featuredImage
+                              ? <img src={item.product.featuredImage} alt={item.product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                              : <div className="w-full h-full flex items-center justify-center text-zinc-300 text-[9px] font-black uppercase">No img</div>
+                            }
+                          </div>
+
+                          {/* Details */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="font-black text-sm uppercase leading-tight truncate">{item.product.name}</p>
+                              <p className="font-black text-sm flex-shrink-0">₹{(item.product.price * item.quantity).toLocaleString("en-IN")}</p>
+                            </div>
+
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              {item.product.category?.name && (
+                                <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 bg-zinc-100 px-1.5 py-0.5">{item.product.category.name}</span>
+                              )}
+                              {item.size && (
+                                <span className="text-[9px] font-black uppercase tracking-widest border border-zinc-200 px-1.5 py-0.5 text-zinc-500">Size: {item.size}</span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-4 mt-2 text-xs">
+                              <span className="text-zinc-400 font-bold">₹{item.product.price.toLocaleString("en-IN")} × {item.quantity}</span>
+                              <span className="text-[#0EA5E9] font-bold text-[10px] flex items-center gap-1">
+                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                                Arrives {range}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ── Price summary ── */}
+                  <div className="border border-zinc-200 p-4 flex flex-col gap-2 text-sm">
+                    <div className="flex justify-between text-zinc-500">
+                      <span>Subtotal ({cart.items.reduce((s, i) => s + i.quantity, 0)} items)</span>
+                      <span className="font-black text-black">₹{subtotal.toLocaleString("en-IN")}</span>
+                    </div>
+                    <div className="flex justify-between text-zinc-500">
+                      <span>Shipping</span>
+                      <span className={`font-black ${shipping === 0 ? "text-[#00FF94]" : "text-black"}`}>{shipping === 0 ? "Free" : `₹${shipping}`}</span>
+                    </div>
+                    <div className="flex justify-between font-black text-base border-t border-zinc-100 pt-2 mt-1">
+                      <span>Total</span>
+                      <span>₹{total.toLocaleString("en-IN")}</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => { setError(null); setStep("payment"); }}
+                    className="w-full bg-black text-white text-xs font-black uppercase tracking-widest py-3.5 hover:bg-zinc-800 active:scale-[0.98] transition-all duration-200 group flex items-center justify-center gap-2"
+                  >
+                    Continue to Payment
+                    <svg className="transition-transform group-hover:translate-x-1 duration-200" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                  </button>
+                </div>
               </div>
             )}
 

@@ -1,9 +1,14 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "../../../contexts/AuthContext";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { getOrders, addToCart, type Order } from "@/lib/api";
+import { getOrders, getAddresses, addToCart, type Order, type Address } from "@/lib/api";
+
+function decodeAddress(fullAddress: string) {
+  try { return JSON.parse(fullAddress) as { receiverName: string; phone: string; address: string }; }
+  catch { return { receiverName: "", phone: "", address: fullAddress }; }
+}
 import { useRouter } from "next/navigation";
 
 const STATUS_STYLE: Record<string, { color: string; bg: string }> = {
@@ -22,12 +27,6 @@ const PAYMENT_STYLE: Record<string, { color: string }> = {
 
 const STEPS = ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED"];
 
-const STEP_ICONS: Record<string, string> = {
-  PENDING:   "M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 0 2-2h2a2 2 0 0 0 2 2",
-  CONFIRMED: "M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z",
-  SHIPPED:   "M1 3h15v13H1zM16 8h4l3 5v3h-7V8zM5.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zm13 0a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z",
-  DELIVERED: "M20 6L9 17l-5-5",
-};
 
 function getDeliveryDate(createdAt: string) {
   const d = new Date(createdAt); d.setDate(d.getDate() + 10);
@@ -41,30 +40,33 @@ function getDaysLeft(createdAt: string, status: string) {
 }
 
 export default function OrdersPage() {
-  const { getToken, isSignedIn, isLoaded } = useAuth();
+  const { isSignedIn, isLoaded } = useAuth();
   const router = useRouter();
   const [orders, setOrders]           = useState<Order[]>([]);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState<string | null>(null);
   const [buyingAgain, setBuyingAgain] = useState<string | null>(null);
   const [expanded, setExpanded]       = useState<string | null>(null);
+  const [addresses, setAddresses]     = useState<Address[]>([]);
 
   async function handleBuyAgain(order: Order) {
-    const token = await getToken(); if (!token) return;
     setBuyingAgain(order.id);
     try {
       for (const item of order.items)
-        if (item.product?.id) await addToCart(item.product.id, item.quantity, token);
+        if (item.product?.id) await addToCart(item.product.id, item.quantity, item.size ?? "");
       router.push("/checkout");
     } catch { setBuyingAgain(null); }
   }
 
   const load = useCallback(async () => {
-    const token = await getToken(); if (!token) return;
-    try { setOrders(await getOrders(token)); }
+    try {
+      const [orders, addrs] = await Promise.all([getOrders(), getAddresses()]);
+      setOrders(orders);
+      setAddresses(addrs);
+    }
     catch (e) { setError(e instanceof Error ? e.message : "Failed to load orders"); }
     finally { setLoading(false); }
-  }, [getToken]);
+  }, []);
 
   useEffect(() => {
     if (isLoaded && isSignedIn) load();
@@ -276,7 +278,7 @@ export default function OrdersPage() {
                             {item.product?.name ?? "Product"}
                           </Link>
                           <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 mt-0.5">
-                            {item.product?.category?.name} · Qty {item.quantity} · ₹{item.price.toLocaleString("en-IN")} each
+                            {item.product?.category?.name ? `${item.product.category.name} · ` : ""}Qty {item.quantity} · ₹{item.price.toLocaleString("en-IN")} each
                           </p>
                         </div>
                         <p className="font-black text-sm flex-shrink-0">₹{(item.price * item.quantity).toLocaleString("en-IN")}</p>
@@ -294,9 +296,32 @@ export default function OrdersPage() {
                     )}
                   </div>
 
+                  {/* ── Delivery Address ── */}
+                  {(() => {
+                    const raw = order.deliveryAddress
+                      ?? addresses[addresses.length - 1]?.fullAddress;
+                    if (!raw) return null;
+                    const da = decodeAddress(raw);
+                    return (
+                      <div className="px-5 py-4 border-t border-zinc-100">
+                        <p className="text-[8px] font-black uppercase tracking-[0.4em] text-zinc-400 mb-2">Delivery Address</p>
+                        <div className="flex items-start gap-3">
+                          <div className="w-7 h-7 bg-zinc-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#71717a" strokeWidth="2.5" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                          </div>
+                          <div className="flex-1">
+                            {da.receiverName && <p className="text-sm font-black uppercase tracking-tight text-black">{da.receiverName}</p>}
+                            {da.phone && <p className="text-[11px] font-bold text-zinc-500 mt-0.5 tracking-wide">{da.phone}</p>}
+                            <p className="text-[11px] text-zinc-500 mt-1 leading-relaxed">{da.address || "—"}</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* ── Footer ── */}
                   <div className="px-5 py-3 bg-zinc-50 border-t border-zinc-100 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-4 text-xs text-zinc-500">
+                    <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-500">
                       <span>Subtotal <span className="font-black text-black">₹{subtotal.toLocaleString("en-IN")}</span></span>
                       <span>Shipping <span className={`font-black ${order.totalAmount > subtotal ? "text-black" : "text-[#00FF94]"}`}>{order.totalAmount > subtotal ? `₹${(order.totalAmount - subtotal).toLocaleString("en-IN")}` : "Free"}</span></span>
                       <span className="font-black text-black border-l border-zinc-200 pl-4">Total ₹{order.totalAmount.toLocaleString("en-IN")}</span>

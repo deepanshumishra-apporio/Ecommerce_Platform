@@ -41,3 +41,6 @@ yarn-error.log*
 .claude/
 .agents/
 plugins/
+
+
+.CLAUDE.md

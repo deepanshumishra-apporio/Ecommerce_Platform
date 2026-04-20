@@ -172,6 +172,13 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
           <h3 className="text-[11px] font-black uppercase tracking-wider text-black leading-tight mb-1.5 line-clamp-2">
             {product.name}
           </h3>
+          {product.productSizes?.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-1.5">
+              {product.productSizes.map((ps) => (
+                <span key={ps.size} className="text-[8px] font-black uppercase border border-zinc-200 px-1.5 py-0.5 text-zinc-400">{ps.size}</span>
+              ))}
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <span className="text-sm font-black text-black">
               ₹{product.price.toLocaleString("en-IN")}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "../contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { checkCanReview, submitReview, type Review } from "@/lib/api";
 
@@ -11,7 +11,7 @@ export default function ReviewForm({
   productId: string;
   onSubmitted: (review: Review) => void;
 }) {
-  const { getToken, isSignedIn, isLoaded } = useAuth();
+  const { isSignedIn, isLoaded } = useAuth();
   const [status, setStatus]   = useState<"loading" | "can" | "already" | "not_delivered" | "done">("loading");
   const [rating, setRating]   = useState(0);
   const [hovered, setHovered] = useState(0);
@@ -24,21 +24,19 @@ export default function ReviewForm({
     if (!isSignedIn) { setStatus("not_delivered"); return; }
     (async () => {
       try {
-        const token = await getToken(); if (!token) return;
-        const res = await checkCanReview(productId, token);
+        const res = await checkCanReview(productId);
         setStatus(res.canReview ? "can" : res.reason === "already_reviewed" ? "already" : "not_delivered");
       } catch { setStatus("not_delivered"); }
     })();
-  }, [isLoaded, isSignedIn, productId, getToken]);
+  }, [isLoaded, isSignedIn, productId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (rating === 0) { setError("Please select a rating"); return; }
     if (!comment.trim()) { setError("Please write a comment"); return; }
-    const token = await getToken(); if (!token) return;
     setSubmitting(true); setError(null);
     try {
-      const review = await submitReview(productId, rating, comment, token);
+      const review = await submitReview(productId, rating, comment);
       setStatus("done");
       onSubmitted(review);
     } catch (e) {

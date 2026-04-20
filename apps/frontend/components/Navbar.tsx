@@ -1,38 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useAuth, UserButton } from "@clerk/nextjs";
-import { useEffect, useState } from "react";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCounts } from "@/contexts/CountsContext";
+import { useState } from "react";
 
 export default function Navbar() {
-  const { isSignedIn, isLoaded, getToken } = useAuth();
-  const [isAdmin, setIsAdmin]       = useState(false);
-  const [menuOpen, setMenuOpen]     = useState(false);
-  const [cartCount, setCartCount]   = useState(0);
-  const [wishCount, setWishCount]   = useState(0);
+  const { isSignedIn, isLoaded, user, signOut } = useAuth();
+  const { cartCount, wishCount } = useCounts();
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  useEffect(() => {
-    if (!isSignedIn) { setIsAdmin(false); setCartCount(0); setWishCount(0); return; }
-    (async () => {
-      try {
-        const token = await getToken();
-        if (!token) return;
-        const [meRes, cartRes, wishRes] = await Promise.all([
-          fetch(`${API_BASE}/auth/me`,    { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`${API_BASE}/cart`,       { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`${API_BASE}/wishlist`,   { headers: { Authorization: `Bearer ${token}` } }),
-        ]);
-        const me   = await meRes.json();
-        const cart = await cartRes.json();
-        const wish = await wishRes.json();
-        setIsAdmin(me?.data?.role === "ADMIN");
-        setCartCount(cart?.data?.items?.reduce((s: number, i: { quantity: number }) => s + i.quantity, 0) ?? 0);
-        setWishCount(wish?.data?.items?.length ?? 0);
-      } catch { /* non-blocking */ }
-    })();
-  }, [isSignedIn, getToken]);
+  const isAdmin = user?.role === "ADMIN";
 
   function Badge({ n }: { n: number }) {
     if (!n) return null;
@@ -85,8 +63,25 @@ export default function Navbar() {
             <span className="hidden sm:inline">Cart</span>
           </Link>
 
+          {/* Profile */}
+          {isLoaded && isSignedIn && (
+            <Link href="/profile" className="hidden md:flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-zinc-700 hover:text-black transition-colors">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+              <span className="hidden sm:inline">Profile</span>
+            </Link>
+          )}
+
           {isLoaded && (
-            isSignedIn ? <UserButton /> : (
+            isSignedIn ? (
+              <button
+                onClick={signOut}
+                className="hidden md:block text-xs font-bold uppercase tracking-widest text-zinc-700 hover:text-black transition-colors"
+              >
+                Sign Out
+              </button>
+            ) : (
               <div className="hidden md:flex items-center gap-3 text-xs font-bold uppercase tracking-widest">
                 <Link href="/sign-in" className="text-zinc-700 hover:text-black transition-colors">Sign In</Link>
                 <Link href="/sign-up" className="bg-black text-white px-4 py-2 hover:bg-zinc-800 transition-colors">Sign Up</Link>
@@ -122,6 +117,14 @@ export default function Navbar() {
               <Link href="/sign-in" onClick={() => setMenuOpen(false)} className="text-zinc-700 hover:text-black transition-colors">Sign In</Link>
               <Link href="/sign-up" onClick={() => setMenuOpen(false)} className="bg-black text-white text-center py-2 hover:bg-zinc-800 transition-colors">Sign Up</Link>
             </div>
+          )}
+          {isLoaded && isSignedIn && (
+            <>
+              <Link href="/profile" onClick={() => setMenuOpen(false)} className="text-zinc-700 hover:text-black transition-colors">Profile</Link>
+              <button onClick={() => { signOut(); setMenuOpen(false); }} className="text-left text-zinc-700 hover:text-black transition-colors">
+                Sign Out
+              </button>
+            </>
           )}
         </div>
       )}
