@@ -14,7 +14,6 @@ A full-stack ecommerce application built with **Next.js** and **Express**, struc
 | Database | PostgreSQL via Prisma ORM |
 | Payments | Razorpay |
 | Media Storage | ImageKit |
-| File Storage | Cloudflare R2 (optional) |
 | Monorepo | Turborepo + npm workspaces |
 
 ---
@@ -77,7 +76,6 @@ encommerce_application/
 - A PostgreSQL database (e.g. [Neon](https://neon.tech))
 - [Razorpay](https://razorpay.com) test account
 - [ImageKit](https://imagekit.io) account
-- [Cloudflare R2](https://developers.cloudflare.com/r2/) bucket *(optional)*
 
 ### Installation
 
@@ -107,7 +105,6 @@ cp apps/frontend/.env.example apps/frontend/.env.local
 | `IMAGEKIT_PUBLIC_KEY` | No | ImageKit public key |
 | `IMAGEKIT_PRIVATE_KEY` | No | ImageKit private key |
 | `IMAGEKIT_URL_ENDPOINT` | No | ImageKit URL endpoint |
-| `CLOUDFLARE_R2_*` | No | R2 bucket credentials (5 vars) |
 
 ### Database Setup
 
